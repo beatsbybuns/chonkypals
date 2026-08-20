@@ -71,10 +71,15 @@
   .pet-picker-title{ font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.02em; margin-bottom:8px; color:var(--muted); text-align:center; }
   .pet-picker-grid{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
   .pet-picker-option{
-    width:56px; height:56px; border-radius:12px; border:2px solid var(--border); background:var(--card-bg);
-    display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; padding:4px;
+    width:64px; border-radius:12px; border:2px solid var(--border); background:var(--card-bg);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer;
+    overflow:hidden; padding:5px 2px 6px; gap:3px;
   }
-  .pet-picker-option img{ width:100%; height:100%; object-fit:contain; }
+  .pet-picker-option img{ width:48px; height:48px; object-fit:contain; }
+  .pet-picker-name{
+    font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.01em;
+    max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink);
+  }
   .pet-picker-option.active{ border-color:#7553FF; box-shadow:0 0 0 2px #7553FF inset; }
   .pet-picker-option:active{ transform:scale(.92); }
   .help-section{ margin-bottom:14px; }
@@ -413,7 +418,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-19.23 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-19.24 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -510,6 +515,11 @@
     <div class="help-section">
       <div class="help-section-title">Daily streak &amp; ambience</div>
       <p>Open the game on consecutive days to build your streak (🔥 next to your coins) — miss a day and it resets. The room's lighting also gently shifts with your real local time (shown subtly in the top-right corner of the room), from morning light to a cozy dusk to a deep blue at night.</p>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">Multiple pets</div>
+      <p>Each pet in the 🐾 picker (Log, Bunny, Toad) has its own name and its own Hunger, Happiness, and Energy — they live their lives independently, even decaying while you're not looking at them. Coins, food, toys, decor, and owned outfits are shared across all of them.</p>
     </div>
 
     <div class="help-section">
@@ -696,20 +706,18 @@ const DECAY_PER_HOUR = 6; // points lost per hour per stat while awake
 const SLEEP_REGEN_PER_HOUR = 20; // energy regen per hour while asleep
 const SLEEP_POINT_INTERVAL_SEC = 3600 / SLEEP_REGEN_PER_HOUR; // seconds to gain +1 energy while asleep
 
+const PET_SKIN_IDS = ['log','bunny','toad'];
+function freshPetData(){
+  return { name: 'Your Pet', hunger: 100, happy: 100, energy: 100, enrichment: 0, enrichmentLevel: 1, sleeping: false, wearing: null };
+}
+
 function freshState(){
+  const pets = {};
+  PET_SKIN_IDS.forEach(id => { pets[id] = freshPetData(); });
   return {
     coins: 20,
-    pet: {
-      name: 'Your Pet',
-      hunger: 100,
-      happy: 100,
-      energy: 100,
-      enrichment: 0,
-      enrichmentLevel: 1,
-      sleeping: false,
-      wearing: null,
-      skin: 'log'
-    },
+    pets: pets,
+    activeSkin: 'log',
     inventory: { food:{}, toy:{}, decor:{}, wear:{} },
     placedDecor: [],
     ownedDecor: [],
@@ -723,11 +731,43 @@ function freshState(){
 }
 
 let state = Store.load() || freshState();
+
+// migrate old single-pet saves (pre-multi-pet) into the new per-skin pets map
+if (!state.pets){
+  const oldPet = state.pet || freshPetData();
+  const activeId = PET_SKIN_IDS.includes(oldPet.skin) ? oldPet.skin : 'log';
+  const pets = {};
+  PET_SKIN_IDS.forEach(id => { pets[id] = freshPetData(); });
+  pets[activeId] = {
+    name: oldPet.name || 'Your Pet',
+    hunger: oldPet.hunger ?? 100,
+    happy: oldPet.happy ?? 100,
+    energy: oldPet.energy ?? 100,
+    enrichment: oldPet.enrichment ?? 0,
+    enrichmentLevel: oldPet.enrichmentLevel || 1,
+    sleeping: !!oldPet.sleeping,
+    wearing: oldPet.wearing || null
+  };
+  state.pets = pets;
+  state.activeSkin = activeId;
+  delete state.pet;
+}
+if (!state.activeSkin || !PET_SKIN_IDS.includes(state.activeSkin)) state.activeSkin = 'log';
+PET_SKIN_IDS.forEach(id => { if (!state.pets[id]) state.pets[id] = freshPetData(); });
+
+// `state.pet` is a live view of the currently active pet's data — reading/writing
+// state.pet.X transparently affects state.pets[state.activeSkin].X
+Object.defineProperty(state, 'pet', {
+  get(){ return state.pets[state.activeSkin]; },
+  set(v){ state.pets[state.activeSkin] = v; },
+  enumerable: false,
+  configurable: true
+});
+
 if (!state.freeFeedTimes) state.freeFeedTimes = [];
 if (!state.ownedDecor) state.ownedDecor = [...(state.placedDecor||[])];
 if (!state.decorOffsets) state.decorOffsets = {};
 if (state.wearOffset === undefined) state.wearOffset = null;
-if (!state.pet.skin) state.pet.skin = 'log';
 if (!state.streak) state.streak = { count: 0, lastDate: null };
 if (!state.ownedWear) state.ownedWear = state.pet.wearing ? [state.pet.wearing] : [];
 if (state.pet.enrichment === undefined) state.pet.enrichment = 0;
@@ -767,15 +807,19 @@ function applyDecay(){
   const now = Date.now();
   const hoursPassed = (now - state.lastUpdate) / 3600000;
   if (hoursPassed <= 0){ return; }
-  if (state.pet.sleeping){
-    state.pet.energy = clamp(state.pet.energy + SLEEP_REGEN_PER_HOUR * hoursPassed);
-    state.pet.hunger = clamp(state.pet.hunger - DECAY_PER_HOUR * 0.5 * hoursPassed);
-    state.pet.happy  = clamp(state.pet.happy  - DECAY_PER_HOUR * 0.3 * hoursPassed);
-  } else {
-    state.pet.hunger = clamp(state.pet.hunger - DECAY_PER_HOUR * hoursPassed);
-    state.pet.happy  = clamp(state.pet.happy  - DECAY_PER_HOUR * hoursPassed);
-    state.pet.energy = clamp(state.pet.energy - DECAY_PER_HOUR * 0.6 * hoursPassed * energyDecayMultiplier());
-  }
+  const mult = energyDecayMultiplier();
+  Object.keys(state.pets).forEach(id=>{
+    const p = state.pets[id];
+    if (p.sleeping){
+      p.energy = clamp(p.energy + SLEEP_REGEN_PER_HOUR * hoursPassed);
+      p.hunger = clamp(p.hunger - DECAY_PER_HOUR * 0.5 * hoursPassed);
+      p.happy  = clamp(p.happy  - DECAY_PER_HOUR * 0.3 * hoursPassed);
+    } else {
+      p.hunger = clamp(p.hunger - DECAY_PER_HOUR * hoursPassed);
+      p.happy  = clamp(p.happy  - DECAY_PER_HOUR * hoursPassed);
+      p.energy = clamp(p.energy - DECAY_PER_HOUR * 0.6 * hoursPassed * mult);
+    }
+  });
   state.lastUpdate = now;
 }
 
@@ -873,7 +917,7 @@ function render(){
   document.getElementById('petNameLabel').textContent = state.pet.name;
   const spriteImgEl = document.getElementById('petSpriteImg');
   if (spriteImgEl){
-    const wantSrc = getSkinSrc(state.pet.skin || 'log');
+    const wantSrc = getSkinSrc(state.activeSkin || 'log');
     if (wantSrc && spriteImgEl.src !== wantSrc) spriteImgEl.src = wantSrc;
   }
   const topNameEl = document.getElementById('petNameTop');
@@ -1177,15 +1221,21 @@ const Game = {
     grid.innerHTML = '';
     Object.keys(PET_SKINS).forEach(id=>{
       const skin = PET_SKINS[id];
+      const petName = (state.pets[id] && state.pets[id].name) || 'Your Pet';
       const opt = document.createElement('div');
-      opt.className = 'pet-picker-option' + ((state.pet.skin||'log') === id ? ' active' : '');
-      opt.title = skin.name;
+      opt.className = 'pet-picker-option' + (state.activeSkin === id ? ' active' : '');
+      opt.title = petName + ' (' + skin.name + ')';
       const img = document.createElement('img');
       img.src = getSkinSrc(id);
       img.alt = skin.name;
+      const nameLabel = document.createElement('div');
+      nameLabel.className = 'pet-picker-name';
+      nameLabel.textContent = petName;
       opt.appendChild(img);
+      opt.appendChild(nameLabel);
       opt.addEventListener('click', ()=>{
-        state.pet.skin = id;
+        applyDecay();
+        state.activeSkin = id;
         render();
         Game.renderPetPicker();
         document.getElementById('petPickerPanel').style.display = 'none';
