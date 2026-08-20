@@ -434,7 +434,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.40 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.41 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -3216,23 +3216,31 @@ const Explore = {
       ctx.lineWidth = 2.5;
       ctx.stroke();
     }
-    const head = this.proj(x, y, 0.85, origin);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     if (isPlayer && this.petImgLoaded && this.petImg){
+      // bottom-anchor the pet sprite just above its own shadow instead of centering it
+      // way up at "head height" (which is right for a tall NPC, but leaves a small
+      // round pet looking like it's floating far above the ground)
       const iw = this.petImg.naturalWidth || 1;
       const ih = this.petImg.naturalHeight || 1;
       const targetH = 40;
       const targetW = targetH * (iw / ih);
-      ctx.drawImage(this.petImg, head.x - targetW/2, head.y - targetH/2, targetW, targetH);
-    } else {
-      ctx.font = '30px sans-serif';
-      ctx.fillText(emoji, head.x, head.y);
-    }
-    if (isPlayer){
+      const groundAnchor = this.proj(x, y, 0.08, origin);
+      const drawY = groundAnchor.y - targetH;
+      ctx.drawImage(this.petImg, groundAnchor.x - targetW/2, drawY, targetW, targetH);
       ctx.font = 'bold 10px sans-serif';
       ctx.fillStyle = '#111';
-      ctx.fillText('your pet', head.x, head.y + 24);
+      ctx.fillText('your pet', groundAnchor.x, drawY - 8);
+    } else {
+      const head = this.proj(x, y, 0.85, origin);
+      ctx.font = '30px sans-serif';
+      ctx.fillText(emoji, head.x, head.y);
+      if (isPlayer){
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillStyle = '#111';
+        ctx.fillText('your pet', head.x, head.y + 24);
+      }
     }
   }
 };
