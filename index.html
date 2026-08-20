@@ -209,6 +209,13 @@
   }
   .shop-item button:disabled{ background:var(--surface); color:var(--ink); border-color:var(--border); opacity:1; }
   .owned-badge{ font-size:9px; background:var(--green); border:2px solid var(--border); font-weight:800; text-transform:uppercase; border-radius:999px; padding:2px 8px; }
+  .shop-item.inv-clickable{ cursor:pointer; }
+  .shop-item.inv-clickable:active{ transform:scale(.96); }
+  .item-detail-emoji{ font-size:48px; text-align:center; margin:4px 0 10px; }
+  .item-detail-emoji img{ width:64px; height:64px; object-fit:contain; margin:0 auto; display:block; }
+  .item-detail-desc{ font-size:13px; color:var(--muted); line-height:1.5; margin:0 0 12px; }
+  .item-detail-status{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.01em; color:var(--muted); text-align:center; margin-bottom:14px; }
+  #itemDetailAction:disabled{ opacity:.5; }
   .minigame{ text-align:center; }
   .catch-area{
     position:relative; height:220px; background:var(--surface); border:2px dashed var(--border);
@@ -340,7 +347,7 @@
     </div>
 
     <div class="actions">
-      <button class="btn-feed" onclick="Game.feed()">Feed</button>
+      <button class="btn-feed" onclick="Game.openFeedPicker()">Feed</button>
       <button class="btn-play" onclick="Game.openPlayMenu()">Play</button>
       <button class="btn-dance" onclick="Game.openDance()">Dance</button>
       <button class="btn-chat" onclick="Game.openChat()">Chat</button>
@@ -352,7 +359,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-19.18 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-19.19 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -374,6 +381,25 @@
   <div class="modal">
     <h2>🎒 Inventory <button class="close-x" onclick="Game.closeModal('inventoryModal')">✕</button></h2>
     <div id="inventoryBody"></div>
+  </div>
+</div>
+
+<!-- Feed Modal -->
+<div class="modal-overlay" id="feedModal">
+  <div class="modal">
+    <h2>🍽️ Feed <button class="close-x" onclick="Game.closeModal('feedModal')">✕</button></h2>
+    <div id="feedBody"></div>
+  </div>
+</div>
+
+<!-- Item Detail Modal -->
+<div class="modal-overlay" id="itemDetailModal" style="z-index:20;">
+  <div class="modal" style="max-width:300px;">
+    <h2><span id="itemDetailName">Item</span> <button class="close-x" onclick="Game.closeItemDetail()">✕</button></h2>
+    <div class="item-detail-emoji" id="itemDetailEmoji"></div>
+    <p class="item-detail-desc" id="itemDetailDesc"></p>
+    <div class="item-detail-status" id="itemDetailStatus"></div>
+    <button class="btn-primary btn-celebrate" id="itemDetailAction" style="width:100%;"></button>
   </div>
 </div>
 
@@ -574,6 +600,26 @@ const PET_SKINS = {
 function getSkinSrc(id){
   const skin = PET_SKINS[id] || PET_SKINS.log;
   return skin.src || PET_SKINS_DEFAULT_SRC;
+}
+
+function itemDescription(cat, item){
+  if (cat === 'food'){
+    const parts = [];
+    if (item.hunger) parts.push(`restores +${item.hunger} hunger`);
+    if (item.energyMin !== undefined && item.energyMax !== undefined) parts.push(`+${item.energyMin}-${item.energyMax} energy`);
+    else if (item.energy) parts.push(`+${item.energy} energy`);
+    return parts.length ? `Feed it to your pet — ${parts.join(', ')}.` : 'A tasty snack for your pet.';
+  }
+  if (cat === 'toy'){
+    return `Play with it for +${item.happy} happiness.`;
+  }
+  if (cat === 'decor'){
+    return 'A cozy piece of room decor. Once placed, drag it anywhere in the room.';
+  }
+  if (cat === 'wear'){
+    return "A stylish accessory for your pet to wear.";
+  }
+  return '';
 }
 
 
@@ -784,38 +830,83 @@ function bouncePet(){
 
 /* ---------------- Actions ---------------- */
 const Game = {
-  feed(){
+  openFeedPicker(){
     applyDecay();
-    const foodInv = state.inventory.food;
-    const owned = Object.keys(foodInv).find(id => foodInv[id] > 0);
-    if (owned){
-      const item = CATALOG.food.find(i=>i.id===owned);
-      foodInv[owned]--;
-      const gains = [];
-      if (item.hunger){ state.pet.hunger = clamp(state.pet.hunger + item.hunger); gains.push(`+${item.hunger} hunger`); }
-      if (item.energyMin !== undefined && item.energyMax !== undefined){
-        const amt = Math.floor(Math.random() * (item.energyMax - item.energyMin + 1)) + item.energyMin;
-        state.pet.energy = clamp(state.pet.energy + amt);
-        gains.push(`+${amt} energy`);
-      } else if (item.energy){
-        state.pet.energy = clamp(state.pet.energy + item.energy);
-        gains.push(`+${item.energy} energy`);
-      }
-      log(`Fed ${item.name}! ${gains.join(', ')}`);
-      bouncePet();
+    document.getElementById('feedModal').classList.add('open');
+    this.renderFeedPicker();
+  },
+
+  renderFeedPicker(){
+    const body = document.getElementById('feedBody');
+    const foodItems = CATALOG.food.filter(i => (state.inventory.food[i.id]||0) > 0);
+    const now = Date.now();
+    const freeLeft = 2 - (state.freeFeedTimes||[]).filter(t => now - t < 3600000).length;
+    const freeCard = `
+      <div class="shop-item inv-clickable" onclick="Game.feedFree()">
+        <div class="emoji">🍽️</div>
+        <div>Small Snack</div>
+        <span class="owned-badge">${freeLeft>0 ? freeLeft+' free left' : 'none left'}</span>
+      </div>`;
+    if (!foodItems.length){
+      body.innerHTML = `<div class="inv-empty" style="margin-bottom:10px;">No food in your inventory yet — visit the Shop!</div><div class="shop-grid">${freeCard}</div>`;
+      return;
+    }
+    const cards = foodItems.map(item => `
+      <div class="shop-item inv-clickable" onclick="Game.feedItem('${item.id}')">
+        <div class="emoji">${item.icon || item.emoji}</div>
+        <div>${item.name}</div>
+        <span class="owned-badge">x${state.inventory.food[item.id]}</span>
+      </div>`).join('');
+    body.innerHTML = `<div class="shop-grid">${cards}${freeCard}</div>`;
+  },
+
+  feedItem(id){
+    applyDecay();
+    const item = CATALOG.food.find(i=>i.id===id);
+    if (!item || !(state.inventory.food[id] > 0)) return;
+    state.inventory.food[id]--;
+    const gains = [];
+    if (item.hunger){ state.pet.hunger = clamp(state.pet.hunger + item.hunger); gains.push(`+${item.hunger} hunger`); }
+    if (item.energyMin !== undefined && item.energyMax !== undefined){
+      const amt = Math.floor(Math.random() * (item.energyMax - item.energyMin + 1)) + item.energyMin;
+      state.pet.energy = clamp(state.pet.energy + amt);
+      gains.push(`+${amt} energy`);
+    } else if (item.energy){
+      state.pet.energy = clamp(state.pet.energy + item.energy);
+      gains.push(`+${item.energy} energy`);
+    }
+    log(`Fed ${item.name}! ${gains.join(', ')}`);
+    bouncePet();
+    render();
+    this.renderFeedPicker();
+  },
+
+  feedFree(){
+    applyDecay();
+    const now = Date.now();
+    state.freeFeedTimes = (state.freeFeedTimes||[]).filter(t => now - t < 3600000);
+    if (state.freeFeedTimes.length >= 2){
+      log("Free feeds used up for this hour. Buy food in the Shop!");
     } else {
-      const now = Date.now();
-      state.freeFeedTimes = (state.freeFeedTimes||[]).filter(t => now - t < 3600000);
-      if (state.freeFeedTimes.length >= 2){
-        log("Free feeds used up for this hour. Buy food in the Shop!");
-      } else {
-        state.freeFeedTimes.push(now);
-        state.pet.hunger = clamp(state.pet.hunger + 5);
-        log('Gave a small snack (+5). Buy food in the Shop for bigger boosts!');
-        bouncePet();
-      }
+      state.freeFeedTimes.push(now);
+      state.pet.hunger = clamp(state.pet.hunger + 5);
+      log('Gave a small snack (+5). Buy food in the Shop for bigger boosts!');
+      bouncePet();
     }
     render();
+    this.renderFeedPicker();
+  },
+
+  useToyItem(id){
+    applyDecay();
+    const item = CATALOG.toy.find(i=>i.id===id);
+    if (!item || !(state.inventory.toy[id] > 0)) return;
+    state.inventory.toy[id]--;
+    state.pet.happy = clamp(state.pet.happy + item.happy);
+    log(`Played with ${item.name}! +${item.happy} happiness`);
+    bouncePet();
+    render();
+    this.renderInventory();
   },
 
   toggleSleep(){
@@ -976,46 +1067,73 @@ const Game = {
   },
 
   renderInventory(){
-    const section = (title, items, badgeFn) => {
-      if (!items.length){
-        return `<div class="inv-section"><div class="inv-section-title">${title}</div><div class="inv-empty">Nothing yet — visit the Shop!</div></div>`;
-      }
-      const cards = items.map(i => `
-        <div class="shop-item">
-          <div class="emoji">${i.icon || i.emoji}</div>
-          <div>${i.name}</div>
-          <span class="owned-badge">${badgeFn(i)}</span>
-        </div>`).join('');
-      return `<div class="inv-section"><div class="inv-section-title">${title}</div><div class="shop-grid">${cards}</div></div>`;
+    const entries = [];
+    CATALOG.food.forEach(item => { const qty = state.inventory.food[item.id]||0; if (qty>0) entries.push({cat:'food', item, qty}); });
+    CATALOG.toy.forEach(item => { const qty = state.inventory.toy[item.id]||0; if (qty>0) entries.push({cat:'toy', item, qty}); });
+    CATALOG.decor.forEach(item => { if (state.ownedDecor.includes(item.id)) entries.push({cat:'decor', item, placed: state.placedDecor.includes(item.id)}); });
+    CATALOG.wear.forEach(item => { if (state.ownedWear.includes(item.id)) entries.push({cat:'wear', item, equipped: state.pet.wearing===item.id}); });
+
+    const body = document.getElementById('inventoryBody');
+    if (!entries.length){
+      body.innerHTML = `<div class="inv-empty">Nothing yet — visit the Shop!</div>`;
+      return;
+    }
+    const badgeFor = (e) => {
+      if (e.cat==='food' || e.cat==='toy') return 'x' + e.qty;
+      if (e.cat==='decor') return e.placed ? 'placed' : 'stored';
+      return e.equipped ? 'worn' : 'owned';
     };
+    const cards = entries.map(e => `
+      <div class="shop-item inv-clickable" onclick="Game.openItemDetail('${e.cat}','${e.item.id}')">
+        <div class="emoji">${e.item.icon || e.item.emoji}</div>
+        <div>${e.item.name}</div>
+        <span class="owned-badge">${badgeFor(e)}</span>
+      </div>`).join('');
+    body.innerHTML = `<div class="shop-grid">${cards}</div>`;
+  },
 
-    const sectionToggle = (title, items, isActiveFn, toggleFnName, activeBadge, onBtnLabel, offBtnLabel) => {
-      if (!items.length){
-        return `<div class="inv-section"><div class="inv-section-title">${title}</div><div class="inv-empty">Nothing yet — visit the Shop!</div></div>`;
-      }
-      const cards = items.map(i => {
-        const active = isActiveFn(i);
-        return `
-        <div class="shop-item">
-          <div class="emoji">${i.icon || i.emoji}</div>
-          <div>${i.name}</div>
-          <span class="owned-badge">${active ? activeBadge : 'in storage'}</span>
-          <button onclick="Game.${toggleFnName}('${i.id}')">${active ? onBtnLabel : offBtnLabel}</button>
-        </div>`;
-      }).join('');
-      return `<div class="inv-section"><div class="inv-section-title">${title}</div><div class="shop-grid">${cards}</div></div>`;
-    };
+  openItemDetail(cat, id){
+    const item = (CATALOG[cat]||[]).find(i=>i.id===id);
+    if (!item) return;
+    document.getElementById('itemDetailEmoji').innerHTML = item.icon || item.emoji;
+    document.getElementById('itemDetailName').textContent = item.name;
+    document.getElementById('itemDetailDesc').textContent = itemDescription(cat, item);
 
-    const foodItems = CATALOG.food.filter(i => (state.inventory.food[i.id]||0) > 0);
-    const toyItems = CATALOG.toy.filter(i => (state.inventory.toy[i.id]||0) > 0);
-    const decorItems = CATALOG.decor.filter(i => state.ownedDecor.includes(i.id));
-    const wearItems = CATALOG.wear.filter(i => state.ownedWear.includes(i.id));
+    const statusEl = document.getElementById('itemDetailStatus');
+    const actionBtn = document.getElementById('itemDetailAction');
 
-    document.getElementById('inventoryBody').innerHTML =
-      section('Food', foodItems, i => 'x' + state.inventory.food[i.id]) +
-      section('Toys', toyItems, i => 'x' + state.inventory.toy[i.id]) +
-      sectionToggle('Room decor', decorItems, i => state.placedDecor.includes(i.id), 'toggleDecorPlacement', 'placed', 'Put away', 'Place') +
-      sectionToggle('Wearing', wearItems, i => state.pet.wearing === i.id, 'toggleWear', 'equipped', 'Take off', 'Wear');
+    if (cat === 'food'){
+      const qty = state.inventory.food[id]||0;
+      statusEl.textContent = `You have ${qty} in your inventory.`;
+      actionBtn.textContent = qty>0 ? 'Feed' : 'None left';
+      actionBtn.disabled = qty<=0;
+      actionBtn.onclick = ()=>{ Game.feedItem(id); Game.openItemDetail(cat, id); };
+    } else if (cat === 'toy'){
+      const qty = state.inventory.toy[id]||0;
+      statusEl.textContent = `You have ${qty} in your inventory.`;
+      actionBtn.textContent = qty>0 ? 'Use' : 'None left';
+      actionBtn.disabled = qty<=0;
+      actionBtn.onclick = ()=>{ Game.useToyItem(id); Game.openItemDetail(cat, id); };
+    } else if (cat === 'decor'){
+      const placed = state.placedDecor.includes(id);
+      statusEl.textContent = placed ? 'Currently placed in your room.' : 'Currently in storage.';
+      actionBtn.textContent = placed ? 'Put away' : 'Place in room';
+      actionBtn.disabled = false;
+      actionBtn.onclick = ()=>{ Game.toggleDecorPlacement(id); Game.openItemDetail(cat, id); };
+    } else if (cat === 'wear'){
+      const equipped = state.pet.wearing === id;
+      statusEl.textContent = equipped ? 'Your pet is wearing this.' : 'Not currently worn.';
+      actionBtn.textContent = equipped ? 'Take off' : 'Wear';
+      actionBtn.disabled = false;
+      actionBtn.onclick = ()=>{ Game.toggleWear(id); Game.openItemDetail(cat, id); };
+    }
+
+    document.getElementById('itemDetailModal').classList.add('open');
+  },
+
+  closeItemDetail(){
+    document.getElementById('itemDetailModal').classList.remove('open');
+    this.renderInventory();
   },
 
   usePlayItem(){
