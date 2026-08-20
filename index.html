@@ -433,7 +433,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.34 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.35 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -884,7 +884,15 @@ function checkDailyStreak(){
   state.streak.count = (state.streak.lastDate === yesterday) ? state.streak.count + 1 : 1;
   state.streak.lastDate = today;
   log(`Daily streak: ${state.streak.count} day${state.streak.count===1?'':'s'} in a row! 🔥`);
-  // roll today's prize now, but don't hand it out until the player actually claims it
+}
+
+// rolls today's prize if it hasn't been rolled yet — independent of the streak check above,
+// so it still works even if the streak was already recorded today (e.g. from before this
+// feature existed, or from an earlier session today). Doesn't hand out the reward yet;
+// that only happens when the player actually claims it.
+function ensureDailyPrizeRolled(){
+  const today = todayKey();
+  if (state.dailyPrize && state.dailyPrize.date === today) return;
   state.dailyPrize = { date: today, kind: (Math.random() < 0.5 ? 'coffee' : 'coins'), claimed: false };
 }
 
@@ -3052,6 +3060,7 @@ petNameTopEl.addEventListener('keydown', (e)=>{
 
 /* ---------------- Init & tick ---------------- */
 checkDailyStreak();
+ensureDailyPrizeRolled();
 applyDecay();
 render();
 showDailyPrizeIfPending();
