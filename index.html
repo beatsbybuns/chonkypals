@@ -434,7 +434,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.36 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.37 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -2223,6 +2223,38 @@ const FireGame = {
   }
 };
 
+/* ---------------- Explore Mode sprite registry ----------------
+   Every prop below draws procedurally (flat isometric shapes) until a real asset
+   is loaded here. Once art direction assets arrive (character design, palette,
+   tile/furniture art), call loadSprite(key, src, {w,h}) with the image data and
+   that object switches to the real art everywhere it's used — no other code
+   needs to change. w/h are the on-screen pixel size to draw the sprite at;
+   it's anchored by its bottom-center to the object's ground point. */
+const SPRITES = {
+  tree:         { img: null, loaded: false, w: 56, h: 78 },
+  bench:        { img: null, loaded: false, w: 52, h: 30 },
+  streetlamp:   { img: null, loaded: false, w: 28, h: 66 },
+  kiosk:        { img: null, loaded: false, w: 60, h: 50 },
+  cafeBuilding: { img: null, loaded: false, w: 220, h: 170 },
+  shopBuilding: { img: null, loaded: false, w: 200, h: 150 },
+  fountain:     { img: null, loaded: false, w: 90, h: 60 },
+  interiorWall: { img: null, loaded: false, w: 260, h: 140 },
+  counter:      { img: null, loaded: false, w: 100, h: 70 },
+  shelf:        { img: null, loaded: false, w: 60, h: 90 },
+  table:        { img: null, loaded: false, w: 46, h: 40 },
+  chair:        { img: null, loaded: false, w: 26, h: 28 }
+};
+function loadSprite(key, src, opts){
+  const spr = SPRITES[key];
+  if (!spr) return;
+  const img = new Image();
+  img.onload = ()=>{ spr.loaded = true; };
+  img.onerror = ()=>{ spr.loaded = false; };
+  img.src = src;
+  spr.img = img;
+  if (opts){ if (opts.w) spr.w = opts.w; if (opts.h) spr.h = opts.h; }
+}
+
 /* ---------------- Explore Mode: downtown San Francisco street ---------------- */
 const Explore = {
   COS30: Math.cos(Math.PI/6),
@@ -2713,6 +2745,25 @@ const Explore = {
     ctx.stroke();
   },
 
+  // Draws a soft contact shadow at the object's ground point, then either the real
+  // sprite (once loaded via loadSprite) or the procedural fallback shape — same call
+  // site works before and after real art arrives.
+  drawGroundSprite(ctx, origin, x, y, key, fallbackFn, shadowRx, shadowRy){
+    const p = this.proj(x, y, 0, origin);
+    if (shadowRx){
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y + 2, shadowRx, shadowRy || shadowRx * 0.42, 0, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(25,20,10,0.16)';
+      ctx.fill();
+    }
+    const spr = SPRITES[key];
+    if (spr && spr.loaded){
+      ctx.drawImage(spr.img, p.x - spr.w/2, p.y - spr.h, spr.w, spr.h);
+    } else {
+      fallbackFn();
+    }
+  },
+
   drawTreeAt(ctx, origin, x, y, stroke){
     const tw = 0.32;
     this.drawBox(ctx, origin, x-tw/2, y-tw/2, x+tw/2, y+tw/2, 0.5, '#8b5e3c','#734c30','#5f3f28', stroke);
@@ -2751,10 +2802,10 @@ const Explore = {
     if (!ctx) return;
     const cw = this.cssW, ch = this.cssH;
     ctx.clearRect(0,0,cw,ch);
-    ctx.fillStyle = '#bfe1ee';
+    ctx.fillStyle = '#cfe8ea';
     ctx.fillRect(0,0,cw,ch);
     // downtown skyline silhouette
-    ctx.fillStyle = 'rgba(112,134,156,0.4)';
+    ctx.fillStyle = 'rgba(134,144,142,0.35)';
     const skyline = [[0.00,58,0.09],[0.09,88,0.07],[0.17,46,0.10],[0.28,105,0.06],[0.36,66,0.11],[0.49,96,0.08],[0.59,52,0.09],[0.70,118,0.07],[0.80,72,0.10],[0.91,60,0.09]];
     skyline.forEach(([relX,h,relW])=>{
       ctx.fillRect(cw*relX, ch*0.30 - h, cw*relW, h);
@@ -2767,7 +2818,7 @@ const Explore = {
       this.proj(0,0,0,origin), this.proj(this.FLOOR_W,0,0,origin),
       this.proj(this.FLOOR_W,this.FLOOR_H,0,origin), this.proj(0,this.FLOOR_H,0,origin)
     ];
-    this.poly(ctx, floorPts, '#55585c', 'rgba(17,17,17,0.2)');
+    this.poly(ctx, floorPts, '#63594e', 'rgba(17,17,17,0.2)');
 
     // dashed centerlines along the two main street corridors
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
@@ -2809,62 +2860,90 @@ const Explore = {
         this.proj(b.x0,b.y0,0,origin), this.proj(b.x1,b.y0,0,origin),
         this.proj(b.x1,b.y1,0,origin), this.proj(b.x0,b.y1,0,origin)
       ];
-      this.poly(ctx, pts, '#d9d3c8', 'rgba(17,17,17,0.2)');
+      this.poly(ctx, pts, '#ded4c0', 'rgba(17,17,17,0.2)');
     });
     // café patio tint
     const cafePts = [
       this.proj(10.5,3,0,origin), this.proj(14.5,3,0,origin),
       this.proj(14.5,8,0,origin), this.proj(10.5,8,0,origin)
     ];
-    this.poly(ctx, cafePts, '#f2ddc0', 'rgba(17,17,17,0.15)');
+    this.poly(ctx, cafePts, '#f0dcbc', 'rgba(17,17,17,0.15)');
     // park grass tint
     const g = this.PARK_GRASS;
     const grassPts = [ this.proj(g.x0,g.y0,0,origin), this.proj(g.x1,g.y0,0,origin), this.proj(g.x1,g.y1,0,origin), this.proj(g.x0,g.y1,0,origin) ];
-    this.poly(ctx, grassPts, '#bcd9a0', 'rgba(17,17,17,0.15)');
+    this.poly(ctx, grassPts, '#9dc178', 'rgba(17,17,17,0.15)');
     // plaza pavement tint
     const pv = this.PLAZA_PAVEMENT;
     const pavPts = [ this.proj(pv.x0,pv.y0,0,origin), this.proj(pv.x1,pv.y0,0,origin), this.proj(pv.x1,pv.y1,0,origin), this.proj(pv.x0,pv.y1,0,origin) ];
-    this.poly(ctx, pavPts, '#e4d6b8', 'rgba(17,17,17,0.15)');
+    this.poly(ctx, pavPts, '#e8d2a8', 'rgba(17,17,17,0.15)');
 
     // build depth-sorted drawable list (street props, buildings, landmarks, npcs, player)
     const drawables = [];
     this.desks.forEach((d,i)=>{
+      const cx = (d.x0+d.x1)/2, cy = (d.y0+d.y1)/2;
       if (i % 2 === 0){
-        const cx = (d.x0+d.x1)/2, cy = (d.y0+d.y1)/2;
-        drawables.push({ depth: d.y1, draw: ()=> this.drawTreeAt(ctx, origin, cx, cy, stroke) });
+        drawables.push({ depth: d.y1, draw: ()=> this.drawGroundSprite(ctx, origin, cx, cy, 'tree',
+          ()=> this.drawTreeAt(ctx, origin, cx, cy, stroke), 20, 9) });
       } else {
-        drawables.push({ depth: d.y1, draw: ()=> this.drawBox(ctx, origin, d.x0,d.y0,d.x1,d.y1, 0.3, '#6c8a5e','#5a7550','#495f42', stroke) });
+        drawables.push({ depth: d.y1, draw: ()=> this.drawGroundSprite(ctx, origin, cx, d.y1, 'bench',
+          ()=> this.drawBox(ctx, origin, d.x0,d.y0,d.x1,d.y1, 0.3, '#6f8f5e','#5c7a4d','#4a6440', stroke), 24, 9) });
       }
     });
-    drawables.push({ depth: 4.0, draw: ()=> this.drawStreetlamp(ctx, origin, 1.8, 4.0) });
-    drawables.push({ depth: this.table.y1, draw: ()=> this.drawBox(ctx, origin, this.table.x0,this.table.y0,this.table.x1,this.table.y1, 0.55, '#e0574a','#c1483d','#a53c32', stroke) });
-    this.walls.forEach(w=>{
-      drawables.push({ depth: w.y0 - 0.5, draw: ()=> this.drawBox(ctx, origin, w.x0,w.y0,w.x1,w.y1, 1.6, '#a85445','#8a4436','#733a2e', stroke) });
-    });
-    drawables.push({ depth: 100, draw: ()=> this.drawCafeSignage(ctx, origin, stroke) });
+    drawables.push({ depth: 4.0, draw: ()=> this.drawGroundSprite(ctx, origin, 1.8, 4.0, 'streetlamp',
+      ()=> this.drawStreetlamp(ctx, origin, 1.8, 4.0), 10, 5) });
+    drawables.push({ depth: this.table.y1, draw: ()=>{
+      const cx = (this.table.x0+this.table.x1)/2;
+      this.drawGroundSprite(ctx, origin, cx, this.table.y1, 'kiosk',
+        ()=> this.drawBox(ctx, origin, this.table.x0,this.table.y0,this.table.x1,this.table.y1, 0.55, '#e0574a','#c1483d','#a53c32', stroke), 26, 11);
+    }});
+    drawables.push({ depth: this.walls[2].y0 - 0.5, draw: ()=>{
+      const bx = (this.walls[2].x0+this.walls[2].x1)/2, by = this.walls[3].y1;
+      this.drawGroundSprite(ctx, origin, bx, by, 'cafeBuilding', ()=>{
+        this.walls.forEach(w=>{
+          this.drawBox(ctx, origin, w.x0,w.y0,w.x1,w.y1, 1.6, '#a85445','#8a4436','#733a2e', stroke);
+        });
+        this.drawCafeSignage(ctx, origin, stroke);
+      }, 46, 14);
+    }});
 
     // park landmarks
     this.PARK_TREES.forEach(([x,y])=>{
-      drawables.push({ depth: y, draw: ()=> this.drawTreeAt(ctx, origin, x, y, stroke) });
+      drawables.push({ depth: y, draw: ()=> this.drawGroundSprite(ctx, origin, x, y, 'tree',
+        ()=> this.drawTreeAt(ctx, origin, x, y, stroke), 20, 9) });
     });
     this.PARK_BENCHES.forEach(b=>{
-      drawables.push({ depth: b.y1, draw: ()=> this.drawBox(ctx, origin, b.x0,b.y0,b.x1,b.y1, 0.3, '#6c8a5e','#5a7550','#495f42', stroke) });
+      const cx = (b.x0+b.x1)/2;
+      drawables.push({ depth: b.y1, draw: ()=> this.drawGroundSprite(ctx, origin, cx, b.y1, 'bench',
+        ()=> this.drawBox(ctx, origin, b.x0,b.y0,b.x1,b.y1, 0.3, '#6f8f5e','#5c7a4d','#4a6440', stroke), 24, 9) });
     });
 
     // shop block
     const sb = this.SHOP_BUILDING;
-    drawables.push({ depth: sb.y0 - 0.5, draw: ()=> this.drawBox(ctx, origin, sb.x0,sb.y0,sb.x1,sb.y1, 1.7, '#3f6f80','#335a68','#294856', stroke) });
-    drawables.push({ depth: this.SHOP_TREE[1], draw: ()=> this.drawTreeAt(ctx, origin, this.SHOP_TREE[0], this.SHOP_TREE[1], stroke) });
-    drawables.push({ depth: this.SHOP_BENCH.y1, draw: ()=> this.drawBox(ctx, origin, this.SHOP_BENCH.x0,this.SHOP_BENCH.y0,this.SHOP_BENCH.x1,this.SHOP_BENCH.y1, 0.3, '#6c8a5e','#5a7550','#495f42', stroke) });
+    drawables.push({ depth: sb.y0 - 0.5, draw: ()=>{
+      const bx = (sb.x0+sb.x1)/2;
+      this.drawGroundSprite(ctx, origin, bx, sb.y1, 'shopBuilding',
+        ()=> this.drawBox(ctx, origin, sb.x0,sb.y0,sb.x1,sb.y1, 1.7, '#5c8a63','#4a7250','#3d5f42', stroke), 42, 13);
+    }});
+    drawables.push({ depth: this.SHOP_TREE[1], draw: ()=> this.drawGroundSprite(ctx, origin, this.SHOP_TREE[0], this.SHOP_TREE[1], 'tree',
+      ()=> this.drawTreeAt(ctx, origin, this.SHOP_TREE[0], this.SHOP_TREE[1], stroke), 20, 9) });
+    drawables.push({ depth: this.SHOP_BENCH.y1, draw: ()=>{
+      const cx = (this.SHOP_BENCH.x0+this.SHOP_BENCH.x1)/2;
+      this.drawGroundSprite(ctx, origin, cx, this.SHOP_BENCH.y1, 'bench',
+        ()=> this.drawBox(ctx, origin, this.SHOP_BENCH.x0,this.SHOP_BENCH.y0,this.SHOP_BENCH.x1,this.SHOP_BENCH.y1, 0.3, '#6f8f5e','#5c7a4d','#4a6440', stroke), 24, 9);
+    }});
 
     // plaza landmarks
     const pf = this.PLAZA_FOUNTAIN;
-    drawables.push({ depth: pf.y, draw: ()=> this.drawFountain(ctx, origin, pf.x, pf.y, pf.r) });
+    drawables.push({ depth: pf.y, draw: ()=> this.drawGroundSprite(ctx, origin, pf.x, pf.y, 'fountain',
+      ()=> this.drawFountain(ctx, origin, pf.x, pf.y, pf.r), 34, 16) });
     this.PLAZA_BENCHES.forEach(b=>{
-      drawables.push({ depth: b.y1, draw: ()=> this.drawBox(ctx, origin, b.x0,b.y0,b.x1,b.y1, 0.3, '#6c8a5e','#5a7550','#495f42', stroke) });
+      const cx = (b.x0+b.x1)/2;
+      drawables.push({ depth: b.y1, draw: ()=> this.drawGroundSprite(ctx, origin, cx, b.y1, 'bench',
+        ()=> this.drawBox(ctx, origin, b.x0,b.y0,b.x1,b.y1, 0.3, '#6f8f5e','#5c7a4d','#4a6440', stroke), 24, 9) });
     });
     this.PLAZA_LAMPS.forEach(([x,y])=>{
-      drawables.push({ depth: y, draw: ()=> this.drawStreetlamp(ctx, origin, x, y) });
+      drawables.push({ depth: y, draw: ()=> this.drawGroundSprite(ctx, origin, x, y, 'streetlamp',
+        ()=> this.drawStreetlamp(ctx, origin, x, y), 10, 5) });
     });
 
     this.npcs.forEach(npc=>{
@@ -2929,11 +3008,13 @@ const Explore = {
 
     const drawables = [];
     const bw = this.CAFE_BACK_WALL, lw = this.CAFE_LEFT_WALL;
-    drawables.push({ depth: bw.y0 - 0.5, draw: ()=> this.drawBox(ctx, origin, bw.x0,bw.y0,bw.x1,bw.y1, 2.0, '#e4d3ad','#cbb98f','#b3a279', stroke) });
-    drawables.push({ depth: lw.y0 - 0.5, draw: ()=> this.drawBox(ctx, origin, lw.x0,lw.y0,lw.x1,lw.y1, 2.0, '#e4d3ad','#cbb98f','#b3a279', stroke) });
+    drawables.push({ depth: bw.y0 - 0.5, draw: ()=> this.drawGroundSprite(ctx, origin, (bw.x0+bw.x1)/2, bw.y1, 'interiorWall',
+      ()=> this.drawBox(ctx, origin, bw.x0,bw.y0,bw.x1,bw.y1, 2.0, '#e4d3ad','#cbb98f','#b3a279', stroke), 0) });
+    drawables.push({ depth: lw.y0 - 0.5, draw: ()=> this.drawGroundSprite(ctx, origin, lw.x0, (lw.y0+lw.y1)/2, 'interiorWall',
+      ()=> this.drawBox(ctx, origin, lw.x0,lw.y0,lw.x1,lw.y1, 2.0, '#e4d3ad','#cbb98f','#b3a279', stroke), 0) });
 
     const co = this.CAFE_COUNTER;
-    drawables.push({ depth: co.y1, draw: ()=>{
+    drawables.push({ depth: co.y1, draw: ()=> this.drawGroundSprite(ctx, origin, (co.x0+co.x1)/2, co.y1, 'counter', ()=>{
       this.drawBox(ctx, origin, co.x0,co.y0,co.x1,co.y1, 1.0, '#8b5e3c','#734c30','#5f3f28', stroke);
       const es = this.CAFE_ESPRESSO;
       this.drawBox(ctx, origin, es.x0,es.y0,es.x1,es.y1, 0.5, '#4a4a4a','#3a3a3a','#2c2c2c', stroke);
@@ -2942,10 +3023,10 @@ const Explore = {
       ctx.beginPath(); ctx.ellipse(p.x, p.y, 7, 5, 0, 0, Math.PI*2);
       ctx.fillStyle = '#e0574a'; ctx.fill();
       ctx.strokeStyle = 'rgba(17,17,17,0.4)'; ctx.lineWidth = 1; ctx.stroke();
-    }});
+    }, 40, 14) });
 
     const sh = this.CAFE_SHELF;
-    drawables.push({ depth: sh.y1, draw: ()=>{
+    drawables.push({ depth: sh.y1, draw: ()=> this.drawGroundSprite(ctx, origin, (sh.x0+sh.x1)/2, sh.y1, 'shelf', ()=>{
       this.drawBox(ctx, origin, sh.x0,sh.y0,sh.x1,sh.y1, 1.3, '#a9865a','#8f6f49','#785d3c', stroke);
       [0.15,0.5,0.85].forEach(f=>{
         const py = sh.y0 + (sh.y1-sh.y0)*f;
@@ -2953,13 +3034,17 @@ const Explore = {
         ctx.beginPath(); ctx.ellipse(p.x, p.y, 5, 4, 0, 0, Math.PI*2);
         ctx.fillStyle = '#f0c987'; ctx.fill();
       });
-    }});
+    }, 22, 10) });
 
     this.CAFE_TABLES.forEach(t=>{
-      drawables.push({ depth: t.y1, draw: ()=> this.drawBox(ctx, origin, t.x0,t.y0,t.x1,t.y1, 0.5, '#cbb994','#b6a37f','#a08d6b', stroke) });
+      const cx = (t.x0+t.x1)/2;
+      drawables.push({ depth: t.y1, draw: ()=> this.drawGroundSprite(ctx, origin, cx, t.y1, 'table',
+        ()=> this.drawBox(ctx, origin, t.x0,t.y0,t.x1,t.y1, 0.5, '#cbb994','#b6a37f','#a08d6b', stroke), 20, 9) });
     });
     this.CAFE_CHAIRS.forEach(c=>{
-      drawables.push({ depth: c.y1, draw: ()=> this.drawBox(ctx, origin, c.x0,c.y0,c.x1,c.y1, 0.4, '#6c8a5e','#5a7550','#495f42', stroke) });
+      const cx = (c.x0+c.x1)/2;
+      drawables.push({ depth: c.y1, draw: ()=> this.drawGroundSprite(ctx, origin, cx, c.y1, 'chair',
+        ()=> this.drawBox(ctx, origin, c.x0,c.y0,c.x1,c.y1, 0.4, '#6f8f5e','#5c7a4d','#4a6440', stroke), 12, 6) });
     });
 
     drawables.push({ depth: this.player.y, draw: ()=> this.drawCharacter(ctx, origin, this.player.x, this.player.y, '\u{1F9D1}', false, true) });
