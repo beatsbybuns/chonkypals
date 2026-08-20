@@ -45,6 +45,11 @@
     border:2px solid var(--border); border-radius:999px; padding:0 14px; height:34px;
     font-weight:800; text-transform:uppercase; font-size:12px;
   }
+  .streak-badge{
+    display:flex; align-items:center; gap:5px; background:var(--surface);
+    border:2px solid var(--border); border-radius:999px; padding:0 12px; height:34px;
+    font-weight:800; text-transform:uppercase; font-size:12px; cursor:default;
+  }
   .icon-btn{
     width:34px; height:34px; padding:0; border-radius:50%; font-size:16px;
     display:flex; align-items:center; justify-content:center; background:var(--surface);
@@ -106,6 +111,12 @@
   .mood{ font-size:12px; color:var(--muted); }
   .sleep-bar-wrap{ width:120px; margin:6px auto 0; text-align:center; }
   .sleep-bar-side{ position:absolute; right:14px; bottom:10px; z-index:3; width:96px; margin:0; text-align:right; }
+  .room-ambience{ position:absolute; inset:0; z-index:4; pointer-events:none; background-color:rgba(255,255,255,0); transition:background-color 4s ease; border-radius:inherit; }
+  .room-clock{
+    position:absolute; top:14px; right:16px; z-index:3; font-size:11px; font-weight:700;
+    color:var(--ink); opacity:.5; letter-spacing:.02em; font-variant-numeric:tabular-nums;
+    pointer-events:none;
+  }
   .sleep-bar{ height:4px; border-radius:999px; background:var(--track); overflow:hidden; }
   .sleep-bar-fill{ height:100%; background:var(--purple); opacity:.6; width:0%; transition:width 1s linear; }
   .sleep-bar-caption{ font-size:9px; color:var(--muted); margin-top:3px; }
@@ -320,6 +331,7 @@
     header{ padding:10px 14px; }
     header h1{ font-size:15px; }
     .coins{ font-size:11px; height:30px; padding:0 10px; }
+    .streak-badge{ font-size:11px; height:30px; padding:0 10px; }
     .icon-btn{ width:30px; height:30px; font-size:14px; }
     .explore-btn{ height:30px; font-size:9px; padding:0 10px; }
     .shop-grid{ grid-template-columns:repeat(2,1fr); }
@@ -336,6 +348,7 @@
     </div>
     <div class="header-actions">
       <div class="coins">🪙 <span id="coinCount">0</span></div>
+      <div class="streak-badge" title="Daily streak — come back tomorrow to keep it going!">🔥 <span id="streakCount">0</span></div>
       <button class="explore-btn" onclick="Explore.open()" aria-label="Explore mode" title="EXPLORE MODE">Explore Mode</button>
       <div class="pet-picker-wrap">
         <button class="icon-btn" onclick="Game.togglePetPicker()" aria-label="Choose pet" title="CHOOSE PET">🐾</button>
@@ -351,6 +364,7 @@
 
   <div class="room" id="room">
     <div class="decor-layer" id="decorLayer"></div>
+    <div class="room-clock local-clock" id="localClock" title="Your local time"></div>
     <div class="pet-stage">
       <div style="position:relative;">
         <span class="pet-accessory" id="petAccessory"></span>
@@ -365,6 +379,7 @@
       <div class="sleep-bar"><div class="sleep-bar-fill" id="sleepBarFill"></div></div>
       <div class="sleep-bar-caption" id="sleepBarCaption"></div>
     </div>
+    <div class="room-ambience" id="roomAmbience"></div>
   </div>
 
   <div class="stats">
@@ -398,7 +413,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-19.22 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-19.23 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -489,7 +504,12 @@
 
     <div class="help-section">
       <div class="help-section-title">Sleep</div>
-      <p>Puts your pet to sleep so Energy regenerates quickly (about 20 points per hour) instead of draining. The whole screen switches to a dark theme while your pet sleeps.</p>
+      <p>Puts your pet to sleep so Energy regenerates quickly (about 20 points per hour) instead of draining. The whole screen switches to a dark theme while your pet sleeps. Heads up — Energy drains a bit faster as it gets close to 10pm your local time, so it's a good time to tuck your pet in.</p>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">Daily streak &amp; ambience</div>
+      <p>Open the game on consecutive days to build your streak (🔥 next to your coins) — miss a day and it resets. The room's lighting also gently shifts with your real local time (shown subtly in the top-right corner of the room), from morning light to a cozy dusk to a deep blue at night.</p>
     </div>
 
     <div class="help-section">
@@ -697,6 +717,7 @@ function freshState(){
     freeFeedTimes: [],
     decorOffsets: {},
     wearOffset: null,
+    streak: { count: 0, lastDate: null },
     lastUpdate: Date.now()
   };
 }
@@ -707,6 +728,7 @@ if (!state.ownedDecor) state.ownedDecor = [...(state.placedDecor||[])];
 if (!state.decorOffsets) state.decorOffsets = {};
 if (state.wearOffset === undefined) state.wearOffset = null;
 if (!state.pet.skin) state.pet.skin = 'log';
+if (!state.streak) state.streak = { count: 0, lastDate: null };
 if (!state.ownedWear) state.ownedWear = state.pet.wearing ? [state.pet.wearing] : [];
 if (state.pet.enrichment === undefined) state.pet.enrichment = 0;
 if (!state.pet.enrichmentLevel) state.pet.enrichmentLevel = 1;
@@ -730,6 +752,17 @@ let mgInterval = null, mgSpawner = null, mgScore = 0, mgTime = 15;
 
 function clamp(v){ return Math.max(0, Math.min(100, v)); }
 
+function energyDecayMultiplier(){
+  const now = new Date();
+  const hour = now.getHours() + now.getMinutes()/60;
+  if (hour >= 20 && hour < 22){
+    const t = (hour - 20) / 2; // ramps 0 -> 1 between 8pm and 10pm
+    return 1 + t * 0.5; // up to 1.5x right at 10pm
+  }
+  if (hour >= 22 || hour < 6) return 1.5; // stays elevated overnight
+  return 1;
+}
+
 function applyDecay(){
   const now = Date.now();
   const hoursPassed = (now - state.lastUpdate) / 3600000;
@@ -741,9 +774,46 @@ function applyDecay(){
   } else {
     state.pet.hunger = clamp(state.pet.hunger - DECAY_PER_HOUR * hoursPassed);
     state.pet.happy  = clamp(state.pet.happy  - DECAY_PER_HOUR * hoursPassed);
-    state.pet.energy = clamp(state.pet.energy - DECAY_PER_HOUR * 0.6 * hoursPassed);
+    state.pet.energy = clamp(state.pet.energy - DECAY_PER_HOUR * 0.6 * hoursPassed * energyDecayMultiplier());
   }
   state.lastUpdate = now;
+}
+
+function todayKey(d){
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function checkDailyStreak(){
+  if (!state.streak) state.streak = { count: 0, lastDate: null };
+  const today = todayKey();
+  if (state.streak.lastDate === today) return;
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  const yesterday = todayKey(y);
+  state.streak.count = (state.streak.lastDate === yesterday) ? state.streak.count + 1 : 1;
+  state.streak.lastDate = today;
+  log(`Daily streak: ${state.streak.count} day${state.streak.count===1?'':'s'} in a row! 🔥`);
+}
+
+function updateClock(){
+  const el = document.getElementById('localClock');
+  if (!el) return;
+  el.textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function updateAmbience(){
+  const el = document.getElementById('roomAmbience');
+  if (!el) return;
+  const now = new Date();
+  const hour = now.getHours() + now.getMinutes()/60;
+  let color, opacity;
+  if (hour >= 5 && hour < 8){ color = '255,200,140'; opacity = 0.10; }       // sunrise
+  else if (hour >= 8 && hour < 16){ color = '255,255,255'; opacity = 0; }    // daylight, no tint
+  else if (hour >= 16 && hour < 19){ color = '255,140,90'; opacity = 0.12; } // golden hour
+  else if (hour >= 19 && hour < 22){ color = '110,90,200'; opacity = 0.16; } // dusk
+  else { color = '20,20,60'; opacity = 0.30; }                              // night
+  el.style.backgroundColor = `rgba(${color},${opacity})`;
 }
 
 function moodText(){
@@ -789,6 +859,8 @@ function log(msg){
 function render(){
   document.body.classList.toggle('dark-mode', state.pet.sleeping);
   document.getElementById('coinCount').textContent = state.coins;
+  const streakEl = document.getElementById('streakCount');
+  if (streakEl) streakEl.textContent = (state.streak && state.streak.count) || 0;
   document.getElementById('hungerVal').textContent = Math.round(state.pet.hunger);
   document.getElementById('happyVal').textContent = Math.round(state.pet.happy);
   document.getElementById('energyVal').textContent = Math.round(state.pet.energy);
@@ -874,6 +946,37 @@ function makeDraggable(el, getOffset, setOffset){
 function bouncePet(){
   const sprite = document.getElementById('petSprite');
   sprite.classList.remove('bounce'); void sprite.offsetWidth; sprite.classList.add('bounce');
+}
+
+let _audioCtx = null;
+function getAudioCtx(){
+  if (!_audioCtx){
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    _audioCtx = new Ctx();
+  }
+  if (_audioCtx.state === 'suspended'){ _audioCtx.resume().catch(()=>{}); }
+  return _audioCtx;
+}
+
+function playThump(){
+  try{
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(170, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.14);
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.exponentialRampToValueAtTime(0.32, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.22);
+  }catch(e){ console.error('playThump failed', e); }
 }
 
 /* ---------------- Actions ---------------- */
@@ -2323,6 +2426,7 @@ const Explore = {
 
 document.getElementById('petSprite').addEventListener('click', ()=>{
   bouncePet();
+  playThump();
   applyDecay();
   state.pet.happy = clamp(state.pet.happy + 2);
   render();
@@ -2373,10 +2477,15 @@ petNameTopEl.addEventListener('keydown', (e)=>{
 });
 
 /* ---------------- Init & tick ---------------- */
+checkDailyStreak();
 applyDecay();
 render();
+updateClock();
+updateAmbience();
 setInterval(()=>{ applyDecay(); render(); }, 30000); // live tick every 30s
 setInterval(updateSleepBar, 1000); // smooth countdown while sleeping
+setInterval(updateClock, 15000); // refresh local clock
+setInterval(updateAmbience, 60000); // refresh time-of-day ambience
 </script>
 </body>
 </html>
