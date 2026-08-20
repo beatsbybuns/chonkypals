@@ -420,7 +420,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.30 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.31 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -2126,8 +2126,8 @@ const Explore = {
   COS30: Math.cos(Math.PI/6),
   SIN30: Math.sin(Math.PI/6),
   SCALE: 46,
-  FLOOR_W: 14,
-  FLOOR_H: 9,
+  FLOOR_W: 32.4,
+  FLOOR_H: 22.4,
   PLAYER_RADIUS: 0.28,
   SPEED: 3.4, // grid units per second
 
@@ -2147,29 +2147,60 @@ const Explore = {
   petImg: null,
   petImgLoaded: false,
 
-  player: { x: 7, y: 6.5 },
+  player: { x: 8, y: 7.5 },
 
   npcs: [
-    { id:'dana', name:'Dana', x:5.8, y:2.7, emoji:'\u{1F469}‍\u{1F373}' },
-    { id:'sam',  name:'Sam',  x:10.3, y:4.8, emoji:'\u{1F468}‍\u{1F3A4}' }
+    { id:'dana', name:'Dana', x:6.8, y:3.7, emoji:'\u{1F469}‍\u{1F373}' },
+    { id:'sam',  name:'Sam',  x:11.3, y:5.8, emoji:'\u{1F468}‍\u{1F3A4}' }
   ],
 
+  // ---- café block (top-left, x:1-15 y:1-10) ----
   desks: [
-    {x0:2.0, y0:1.5, x1:3.6, y1:2.3},
-    {x0:5.0, y0:1.5, x1:6.6, y1:2.3},
-    {x0:2.0, y0:4.0, x1:3.6, y1:4.8},
-    {x0:5.0, y0:4.0, x1:6.6, y1:4.8}
+    {x0:3.0, y0:2.5, x1:4.6, y1:3.3},
+    {x0:6.0, y0:2.5, x1:7.6, y1:3.3},
+    {x0:3.0, y0:5.0, x1:4.6, y1:5.8},
+    {x0:6.0, y0:5.0, x1:7.6, y1:5.8}
   ],
 
   walls: [
-    {x0:9.5, y0:2.0, x1:9.65, y1:4.3},
-    {x0:9.5, y0:5.3, x1:9.65, y1:7.0},
-    {x0:9.5, y0:2.0, x1:13.5, y1:2.15},
-    {x0:9.5, y0:6.85, x1:13.5, y1:7.0},
-    {x0:13.35, y0:2.0, x1:13.5, y1:7.0}
+    {x0:10.5, y0:3.0, x1:10.65, y1:5.3},
+    {x0:10.5, y0:6.3, x1:10.65, y1:8.0},
+    {x0:10.5, y0:3.0, x1:14.5, y1:3.15},
+    {x0:10.5, y0:7.85, x1:14.5, y1:8.0},
+    {x0:14.35, y0:3.0, x1:14.5, y1:8.0}
   ],
 
-  table: {x0:10.5, y0:3.5, x1:12.5, y1:5.5},
+  table: {x0:11.5, y0:4.5, x1:13.5, y1:6.5},
+
+  // ---- park block (top-right, x:17.4-31.4 y:1-10) ----
+  PARK_GRASS: {x0:18.0, y0:1.6, x1:30.8, y1:9.4},
+  PARK_TREES: [ [19.5,3.2], [19.5,7.2], [29.9,3.2], [29.9,7.2], [24.4,2.4] ],
+  PARK_BENCHES: [
+    {x0:22.0, y0:5.3, x1:23.6, y1:5.6},
+    {x0:26.0, y0:5.3, x1:27.6, y1:5.6}
+  ],
+
+  // ---- shop block (bottom-left, x:1-15 y:12.4-21.4) ----
+  SHOP_BUILDING: {x0:5, y0:14.4, x1:13, y1:20.4},
+  SHOP_TREE: [2.6, 17.0],
+  SHOP_BENCH: {x0:2.0, y0:19.2, x1:3.6, y1:19.5},
+
+  // ---- plaza block (bottom-right, x:17.4-31.4 y:12.4-21.4) ----
+  PLAZA_PAVEMENT: {x0:18.0, y0:13.0, x1:30.8, y1:20.8},
+  PLAZA_FOUNTAIN: {x:24.4, y:17.0, r:1.1},
+  PLAZA_BENCHES: [
+    {x0:20.0, y0:15.0, x1:21.6, y1:15.3},
+    {x0:27.2, y0:18.6, x1:28.8, y1:18.9}
+  ],
+  PLAZA_LAMPS: [ [19.0,14.0], [29.2,19.4] ],
+
+  // block footprints, used to paint the sidewalk apron around each block against the street
+  BLOCK_FOOTPRINTS: [
+    {x0:1, y0:1, x1:15, y1:10},
+    {x0:17.4, y0:1, x1:31.4, y1:10},
+    {x0:1, y0:12.4, x1:15, y1:21.4},
+    {x0:17.4, y0:12.4, x1:31.4, y1:21.4}
+  ],
 
   quest: { stage: 0 },
 
@@ -2213,7 +2244,7 @@ const Explore = {
       this.petImg.src = spriteImgEl.src;
       if (spriteImgEl.complete && spriteImgEl.naturalWidth){ this.petImgLoaded = true; }
     }
-    this.player.x = 7; this.player.y = 6.5;
+    this.player.x = 8; this.player.y = 7.5;
     this.keys = {};
     this.eLocked = false;
     this.dialogueOpen = false;
@@ -2346,8 +2377,7 @@ const Explore = {
   collides(x, y){
     const r = this.PLAYER_RADIUS;
     const px0 = x - r, py0 = y - r, px1 = x + r, py1 = y + r;
-    const blockers = this.desks.concat(this.walls, [this.table]);
-    for (const b of blockers){
+    for (const b of this.blockers){
       if (this.rectsOverlap(px0,py0,px1,py1, b.x0,b.y0,b.x1,b.y1)) return true;
     }
     return false;
@@ -2404,6 +2434,7 @@ const Explore = {
   },
 
   computeOrigin(){
+    // camera follows the player, clamped so the map never scrolls past its own edges
     const corners = [[0,0],[this.FLOOR_W,0],[this.FLOOR_W,this.FLOOR_H],[0,this.FLOOR_H]];
     let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
     corners.forEach(([x,y])=>{
@@ -2414,10 +2445,30 @@ const Explore = {
     });
     const cw = this.cssW || (this.canvas ? this.canvas.clientWidth : 800);
     const ch = this.cssH || (this.canvas ? this.canvas.clientHeight : 600);
-    return {
-      x: cw/2 - (minX+maxX)/2,
-      y: ch/2 - (minY+maxY)/2 + 20
-    };
+    const mapW = maxX - minX, mapH = maxY - minY;
+
+    const pPx = (this.player.x - this.player.y) * this.COS30 * this.SCALE;
+    const pPy = (this.player.x + this.player.y) * this.SIN30 * this.SCALE;
+
+    let originX;
+    if (mapW <= cw){
+      originX = cw/2 - (minX+maxX)/2;
+    } else {
+      const maxOriginX = -minX;
+      const minOriginX = cw - maxX;
+      originX = Math.max(minOriginX, Math.min(maxOriginX, cw/2 - pPx));
+    }
+
+    let originY;
+    if (mapH <= ch){
+      originY = ch/2 - (minY+maxY)/2 + 20;
+    } else {
+      const maxOriginY = -minY;
+      const minOriginY = ch - maxY;
+      originY = Math.max(minOriginY, Math.min(maxOriginY, ch/2 - pPy + 20));
+    }
+
+    return { x: originX, y: originY };
   },
 
   poly(ctx, pts, fill, stroke){
@@ -2463,6 +2514,34 @@ const Explore = {
     ctx.stroke();
   },
 
+  drawTreeAt(ctx, origin, x, y, stroke){
+    const tw = 0.32;
+    this.drawBox(ctx, origin, x-tw/2, y-tw/2, x+tw/2, y+tw/2, 0.5, '#8b5e3c','#734c30','#5f3f28', stroke);
+    this.drawTreeCanopy(ctx, origin, x, y, 0.5, 0.62, '#4c8c5b');
+  },
+
+  drawFountain(ctx, origin, x, y, r){
+    const p = this.proj(x, y, 0.05, origin);
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, r*this.SCALE, r*this.SCALE*0.75, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#c9c2b4';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(17,17,17,0.35)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, r*this.SCALE*0.68, r*this.SCALE*0.5, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#7ec8e3';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(17,17,17,0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y-4, 4, 4, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#eaf7fb';
+    ctx.fill();
+  },
+
   draw(){
     const ctx = this.ctx;
     if (!ctx) return;
@@ -2479,53 +2558,110 @@ const Explore = {
     const origin = this.computeOrigin();
     const stroke = 'rgba(17,17,17,0.35)';
 
-    // sidewalk floor
+    // whole map defaults to street/asphalt, with each block's sidewalk laid on top
     const floorPts = [
       this.proj(0,0,0,origin), this.proj(this.FLOOR_W,0,0,origin),
       this.proj(this.FLOOR_W,this.FLOOR_H,0,origin), this.proj(0,this.FLOOR_H,0,origin)
     ];
-    this.poly(ctx, floorPts, '#d9d3c8', 'rgba(17,17,17,0.2)');
-    // street strip along the bottom edge, with a painted crosswalk
-    const streetPts = [
-      this.proj(0,this.FLOOR_H-1.6,0,origin), this.proj(this.FLOOR_W,this.FLOOR_H-1.6,0,origin),
-      this.proj(this.FLOOR_W,this.FLOOR_H,0,origin), this.proj(0,this.FLOOR_H,0,origin)
-    ];
-    this.poly(ctx, streetPts, '#55585c', 'rgba(17,17,17,0.25)');
+    this.poly(ctx, floorPts, '#55585c', 'rgba(17,17,17,0.2)');
+
+    // dashed centerlines along the two main street corridors
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    for (let yy=1; yy<this.FLOOR_H-1; yy+=1.4){
+      const dashPts = [
+        this.proj(16.14,yy,0,origin), this.proj(16.26,yy,0,origin),
+        this.proj(16.26,yy+0.7,0,origin), this.proj(16.14,yy+0.7,0,origin)
+      ];
+      this.poly(ctx, dashPts, 'rgba(255,255,255,0.55)', null);
+    }
+    for (let xx=1; xx<this.FLOOR_W-1; xx+=1.4){
+      const dashPts = [
+        this.proj(xx,11.14,0,origin), this.proj(xx+0.7,11.14,0,origin),
+        this.proj(xx+0.7,11.26,0,origin), this.proj(xx,11.26,0,origin)
+      ];
+      this.poly(ctx, dashPts, 'rgba(255,255,255,0.55)', null);
+    }
+    // crosswalks linking the four blocks across their streets
     for (let i=0;i<5;i++){
-      const sx0 = 1 + i*0.4, sx1 = sx0 + 0.22;
+      const sy0 = 4.6 + i*0.4, sy1 = sy0 + 0.22;
       const stripePts = [
-        this.proj(sx0,this.FLOOR_H-1.55,0,origin), this.proj(sx1,this.FLOOR_H-1.55,0,origin),
-        this.proj(sx1,this.FLOOR_H-0.05,0,origin), this.proj(sx0,this.FLOOR_H-0.05,0,origin)
+        this.proj(15,sy0,0,origin), this.proj(17.4,sy0,0,origin),
+        this.proj(17.4,sy1,0,origin), this.proj(15,sy1,0,origin)
       ];
       this.poly(ctx, stripePts, 'rgba(255,255,255,0.85)', null);
     }
-    // café patio tint
-    const mrPts = [
-      this.proj(9.5,2,0,origin), this.proj(13.5,2,0,origin),
-      this.proj(13.5,7,0,origin), this.proj(9.5,7,0,origin)
-    ];
-    this.poly(ctx, mrPts, '#f2ddc0', 'rgba(17,17,17,0.15)');
+    for (let i=0;i<5;i++){
+      const sx0 = 6.6 + i*0.4, sx1 = sx0 + 0.22;
+      const stripePts = [
+        this.proj(sx0,10,0,origin), this.proj(sx1,10,0,origin),
+        this.proj(sx1,12.4,0,origin), this.proj(sx0,12.4,0,origin)
+      ];
+      this.poly(ctx, stripePts, 'rgba(255,255,255,0.85)', null);
+    }
 
-    // build depth-sorted drawable list (street props, café building, kiosk, npcs, player)
+    // sidewalk apron for each of the four blocks
+    this.BLOCK_FOOTPRINTS.forEach(b=>{
+      const pts = [
+        this.proj(b.x0,b.y0,0,origin), this.proj(b.x1,b.y0,0,origin),
+        this.proj(b.x1,b.y1,0,origin), this.proj(b.x0,b.y1,0,origin)
+      ];
+      this.poly(ctx, pts, '#d9d3c8', 'rgba(17,17,17,0.2)');
+    });
+    // café patio tint
+    const cafePts = [
+      this.proj(10.5,3,0,origin), this.proj(14.5,3,0,origin),
+      this.proj(14.5,8,0,origin), this.proj(10.5,8,0,origin)
+    ];
+    this.poly(ctx, cafePts, '#f2ddc0', 'rgba(17,17,17,0.15)');
+    // park grass tint
+    const g = this.PARK_GRASS;
+    const grassPts = [ this.proj(g.x0,g.y0,0,origin), this.proj(g.x1,g.y0,0,origin), this.proj(g.x1,g.y1,0,origin), this.proj(g.x0,g.y1,0,origin) ];
+    this.poly(ctx, grassPts, '#bcd9a0', 'rgba(17,17,17,0.15)');
+    // plaza pavement tint
+    const pv = this.PLAZA_PAVEMENT;
+    const pavPts = [ this.proj(pv.x0,pv.y0,0,origin), this.proj(pv.x1,pv.y0,0,origin), this.proj(pv.x1,pv.y1,0,origin), this.proj(pv.x0,pv.y1,0,origin) ];
+    this.poly(ctx, pavPts, '#e4d6b8', 'rgba(17,17,17,0.15)');
+
+    // build depth-sorted drawable list (street props, buildings, landmarks, npcs, player)
     const drawables = [];
     this.desks.forEach((d,i)=>{
       if (i % 2 === 0){
-        // curbside tree
-        const cx = (d.x0+d.x1)/2, cy = (d.y0+d.y1)/2, tw = 0.3;
-        drawables.push({ depth: d.y1, draw: ()=>{
-          this.drawBox(ctx, origin, cx-tw/2, d.y0, cx+tw/2, d.y1, 0.5, '#8b5e3c','#734c30','#5f3f28', stroke);
-          this.drawTreeCanopy(ctx, origin, cx, cy, 0.5, 0.62, '#4c8c5b');
-        }});
+        const cx = (d.x0+d.x1)/2, cy = (d.y0+d.y1)/2;
+        drawables.push({ depth: d.y1, draw: ()=> this.drawTreeAt(ctx, origin, cx, cy, stroke) });
       } else {
-        // park bench
         drawables.push({ depth: d.y1, draw: ()=> this.drawBox(ctx, origin, d.x0,d.y0,d.x1,d.y1, 0.3, '#6c8a5e','#5a7550','#495f42', stroke) });
       }
     });
-    drawables.push({ depth: 3.0, draw: ()=> this.drawStreetlamp(ctx, origin, 0.8, 3.0) });
+    drawables.push({ depth: 4.0, draw: ()=> this.drawStreetlamp(ctx, origin, 1.8, 4.0) });
     drawables.push({ depth: this.table.y1, draw: ()=> this.drawBox(ctx, origin, this.table.x0,this.table.y0,this.table.x1,this.table.y1, 0.55, '#e0574a','#c1483d','#a53c32', stroke) });
     this.walls.forEach(w=>{
       drawables.push({ depth: w.y0 - 0.5, draw: ()=> this.drawBox(ctx, origin, w.x0,w.y0,w.x1,w.y1, 1.6, '#a85445','#8a4436','#733a2e', stroke) });
     });
+
+    // park landmarks
+    this.PARK_TREES.forEach(([x,y])=>{
+      drawables.push({ depth: y, draw: ()=> this.drawTreeAt(ctx, origin, x, y, stroke) });
+    });
+    this.PARK_BENCHES.forEach(b=>{
+      drawables.push({ depth: b.y1, draw: ()=> this.drawBox(ctx, origin, b.x0,b.y0,b.x1,b.y1, 0.3, '#6c8a5e','#5a7550','#495f42', stroke) });
+    });
+
+    // shop block
+    const sb = this.SHOP_BUILDING;
+    drawables.push({ depth: sb.y0 - 0.5, draw: ()=> this.drawBox(ctx, origin, sb.x0,sb.y0,sb.x1,sb.y1, 1.7, '#3f6f80','#335a68','#294856', stroke) });
+    drawables.push({ depth: this.SHOP_TREE[1], draw: ()=> this.drawTreeAt(ctx, origin, this.SHOP_TREE[0], this.SHOP_TREE[1], stroke) });
+    drawables.push({ depth: this.SHOP_BENCH.y1, draw: ()=> this.drawBox(ctx, origin, this.SHOP_BENCH.x0,this.SHOP_BENCH.y0,this.SHOP_BENCH.x1,this.SHOP_BENCH.y1, 0.3, '#6c8a5e','#5a7550','#495f42', stroke) });
+
+    // plaza landmarks
+    const pf = this.PLAZA_FOUNTAIN;
+    drawables.push({ depth: pf.y, draw: ()=> this.drawFountain(ctx, origin, pf.x, pf.y, pf.r) });
+    this.PLAZA_BENCHES.forEach(b=>{
+      drawables.push({ depth: b.y1, draw: ()=> this.drawBox(ctx, origin, b.x0,b.y0,b.x1,b.y1, 0.3, '#6c8a5e','#5a7550','#495f42', stroke) });
+    });
+    this.PLAZA_LAMPS.forEach(([x,y])=>{
+      drawables.push({ depth: y, draw: ()=> this.drawStreetlamp(ctx, origin, x, y) });
+    });
+
     this.npcs.forEach(npc=>{
       drawables.push({ depth: npc.y, draw: ()=> this.drawCharacter(ctx, origin, npc.x, npc.y, npc.emoji, npc.id === this.activeNpcId) });
     });
@@ -2568,6 +2704,20 @@ const Explore = {
     }
   }
 };
+
+// combined collision list across every block's obstacles (built once — all geometry above is static)
+Explore.blockers = [
+  ...Explore.desks,
+  ...Explore.walls,
+  Explore.table,
+  ...Explore.PARK_TREES.map(([x,y])=>({x0:x-0.18, y0:y-0.18, x1:x+0.18, y1:y+0.18})),
+  ...Explore.PARK_BENCHES,
+  Explore.SHOP_BUILDING,
+  (([x,y])=>({x0:x-0.18, y0:y-0.18, x1:x+0.18, y1:y+0.18}))(Explore.SHOP_TREE),
+  Explore.SHOP_BENCH,
+  (f=>({x0:f.x-f.r*0.85, y0:f.y-f.r*0.65, x1:f.x+f.r*0.85, y1:f.y+f.r*0.65}))(Explore.PLAZA_FOUNTAIN),
+  ...Explore.PLAZA_BENCHES
+];
 
 document.getElementById('petSprite').addEventListener('click', ()=>{
   bouncePet();
