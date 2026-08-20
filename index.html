@@ -433,7 +433,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.33 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.34 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -467,13 +467,13 @@
 </div>
 
 <!-- Item Detail Modal -->
-<!-- Daily Prize Modal -->
+<!-- Daily Prize Modal (no close-x on purpose — stays open until claimed) -->
 <div class="modal-overlay" id="dailyPrizeModal">
   <div class="modal" style="max-width:300px; text-align:center;">
-    <h2>Daily Prize <button class="close-x" onclick="Game.closeModal('dailyPrizeModal')">✕</button></h2>
+    <h2 style="justify-content:center;">🎁 Daily Prize</h2>
     <div style="font-size:44px; margin:6px 0;" id="dailyPrizeEmoji">🎁</div>
     <p id="dailyPrizeText" style="font-weight:700; margin:8px 0 16px;"></p>
-    <button class="btn-primary btn-celebrate" style="width:100%;" onclick="Game.closeModal('dailyPrizeModal')">Nice!</button>
+    <button class="btn-primary btn-celebrate" style="width:100%;" id="dailyPrizeClaimBtn" onclick="Game.claimDailyPrize()">Claim</button>
   </div>
 </div>
 
@@ -539,7 +539,7 @@
 
     <div class="help-section">
       <div class="help-section-title">Daily streak &amp; ambience</div>
-      <p>Open the game on consecutive days to build your streak (🔥 next to your coins) — miss a day and it resets. The first time you open the game each day, you also get a Daily Prize: either 15 free coins or a free Coffee, picked at random. The room's lighting also gently shifts with your real local time (shown subtly in the top-right corner of the room), from morning light to a cozy dusk to a deep blue at night.</p>
+      <p>Open the game on consecutive days to build your streak (🔥 next to your coins) — miss a day and it resets. The first time you open the game each day, a Daily Prize pops up — either 15 free coins or a free Coffee, picked at random. It stays on screen until you press Claim, so you won't miss it. The room's lighting also gently shifts with your real local time (shown subtly in the top-right corner of the room), from morning light to a cozy dusk to a deep blue at night.</p>
     </div>
 
     <div class="help-section">
@@ -884,21 +884,27 @@ function checkDailyStreak(){
   state.streak.count = (state.streak.lastDate === yesterday) ? state.streak.count + 1 : 1;
   state.streak.lastDate = today;
   log(`Daily streak: ${state.streak.count} day${state.streak.count===1?'':'s'} in a row! 🔥`);
-  giveDailyPrize();
+  // roll today's prize now, but don't hand it out until the player actually claims it
+  state.dailyPrize = { date: today, kind: (Math.random() < 0.5 ? 'coffee' : 'coins'), claimed: false };
 }
 
-function giveDailyPrize(){
-  const wonCoffee = Math.random() < 0.5;
-  if (wonCoffee){
-    state.inventory.food.coffee = (state.inventory.food.coffee||0) + 1;
-  } else {
-    state.coins += 15;
-  }
-  try{ render(); }catch(e){ console.error('render failed', e); }
+// shows the claim modal if today's prize hasn't been claimed yet — called on every load,
+// so if you close the tab without claiming, it's waiting for you next time you open it (same day)
+function showDailyPrizeIfPending(){
+  const prize = state.dailyPrize;
+  if (!prize || prize.date !== todayKey() || prize.claimed) return;
   const emojiEl = document.getElementById('dailyPrizeEmoji');
   const textEl = document.getElementById('dailyPrizeText');
-  if (emojiEl) emojiEl.textContent = wonCoffee ? '☕' : '🪙';
-  if (textEl) textEl.textContent = wonCoffee ? 'A free Coffee, on the house!' : 'You found 15 coins!';
+  const btnEl = document.getElementById('dailyPrizeClaimBtn');
+  if (prize.kind === 'coffee'){
+    if (emojiEl) emojiEl.textContent = '☕';
+    if (textEl) textEl.textContent = "There's a free Coffee waiting for you!";
+    if (btnEl) btnEl.textContent = 'Claim Coffee ☕';
+  } else {
+    if (emojiEl) emojiEl.textContent = '🪙';
+    if (textEl) textEl.textContent = 'There are 15 free coins waiting for you!';
+    if (btnEl) btnEl.textContent = 'Claim 15 Coins 🪙';
+  }
   const modal = document.getElementById('dailyPrizeModal');
   if (modal) modal.classList.add('open');
 }
@@ -1439,6 +1445,21 @@ const Game = {
   },
 
   closeModal(id){ document.getElementById(id).classList.remove('open'); if(id==='gameModal') this.stopMinigame(); },
+
+  claimDailyPrize(){
+    const prize = state.dailyPrize;
+    if (!prize || prize.claimed){ document.getElementById('dailyPrizeModal').classList.remove('open'); return; }
+    if (prize.kind === 'coffee'){
+      state.inventory.food.coffee = (state.inventory.food.coffee||0) + 1;
+      log('Claimed: a free Coffee! ☕');
+    } else {
+      state.coins += 15;
+      log('Claimed: +15 coins! 🪙');
+    }
+    prize.claimed = true;
+    render();
+    document.getElementById('dailyPrizeModal').classList.remove('open');
+  },
 
   /* ---- mini-game ---- */
   openMinigame(){
@@ -3033,6 +3054,7 @@ petNameTopEl.addEventListener('keydown', (e)=>{
 checkDailyStreak();
 applyDecay();
 render();
+showDailyPrizeIfPending();
 updateClock();
 updateAmbience();
 setInterval(()=>{ applyDecay(); render(); }, 30000); // live tick every 30s
