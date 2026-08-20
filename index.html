@@ -307,6 +307,19 @@
   .explore-dialogue-name{ font-weight:800; text-transform:uppercase; font-size:12px; margin-bottom:6px; letter-spacing:.02em; color:#7553FF; }
   .explore-dialogue-text{ font-size:14px; line-height:1.45; color:#111; }
   .explore-dialogue-hint{ font-size:10px; color:#888; margin-top:10px; text-transform:uppercase; font-weight:700; }
+  .explore-door-prompt{
+    position:absolute; left:50%; top:26px; transform:translateX(-50%); width:min(280px, 80%);
+    background:#fff; border:2px solid #111; border-radius:16px; padding:14px 16px;
+    box-shadow:6px 6px 0 0 #000; text-align:center;
+  }
+  .explore-door-text{ font-size:13px; font-weight:800; color:#111; margin-bottom:10px; }
+  .explore-door-actions{ display:flex; gap:8px; justify-content:center; }
+  .explore-door-actions button{
+    flex:1; border:2px solid #111; border-radius:999px; padding:8px 0; font-size:12px;
+    font-weight:800; text-transform:uppercase; cursor:pointer;
+  }
+  .explore-door-yes{ background:#7553FF; color:#fff; }
+  .explore-door-no{ background:#fff; color:#111; }
   .explore-touch-controls{ display:none; }
   .explore-dpad{
     position:absolute; left:20px; bottom:20px; width:150px; height:150px;
@@ -420,7 +433,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.31 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.32 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -612,6 +625,13 @@
   </div>
   <div class="explore-hint" id="exploreHint">WASD / Arrow keys to move · E to talk</div>
   <div class="explore-prompt" id="explorePrompt" style="display:none;"></div>
+  <div class="explore-door-prompt" id="exploreDoorPrompt" style="display:none;">
+    <div class="explore-door-text" id="exploreDoorText">Enter the café?</div>
+    <div class="explore-door-actions">
+      <button class="explore-door-yes" id="exploreDoorYes">Yes</button>
+      <button class="explore-door-no" id="exploreDoorNo">No</button>
+    </div>
+  </div>
   <div class="explore-dialogue" id="exploreDialogue" style="display:none;">
     <div class="explore-dialogue-name" id="exploreDialogueName"></div>
     <div class="explore-dialogue-text" id="exploreDialogueText"></div>
@@ -2149,7 +2169,8 @@ const Explore = {
 
   player: { x: 8, y: 7.5 },
 
-  npcs: [
+  npcs: [],
+  streetNpcs: [
     { id:'dana', name:'Dana', x:6.8, y:3.7, emoji:'\u{1F469}‍\u{1F373}' },
     { id:'sam',  name:'Sam',  x:11.3, y:5.8, emoji:'\u{1F468}‍\u{1F3A4}' }
   ],
@@ -2202,6 +2223,36 @@ const Explore = {
     {x0:17.4, y0:12.4, x1:31.4, y1:21.4}
   ],
 
+  // ---- café door + interior scene ----
+  scene: 'street', // 'street' | 'cafe'
+  STREET_FLOOR_W: 32.4,
+  STREET_FLOOR_H: 22.4,
+  CAFE_DOOR: { x: 10.2, y: 5.8 },      // street-side hotspot, right at the building's doorway gap
+  DOOR_RADIUS: 0.85,
+  doorNear: false,
+  doorDismissed: false,
+  streetPlayerPos: null,
+
+  CAFE_FLOOR_W: 9,
+  CAFE_FLOOR_H: 7,
+  CAFE_SPAWN: { x: 1.8, y: 6.2 },
+  CAFE_EXIT_DOOR: { x: 1.6, y: 6.4 },
+
+  CAFE_BACK_WALL: { x0:0.5, y0:0.5, x1:8.5, y1:0.65 },
+  CAFE_LEFT_WALL: { x0:0.5, y0:0.5, x1:0.65, y1:5.5 },
+  CAFE_COUNTER: { x0:5.5, y0:1.0, x1:8.0, y1:1.8 },
+  CAFE_ESPRESSO: { x0:6.0, y0:1.05, x1:6.6, y1:1.3 },
+  CAFE_MUG: { x:7.3, y:1.4 },
+  CAFE_SHELF: { x0:0.8, y0:1.0, x1:1.3, y1:4.0 },
+  CAFE_TABLES: [
+    { x0:2.5, y0:3.0, x1:3.3, y1:3.8 },
+    { x0:2.5, y0:5.0, x1:3.3, y1:5.8 }
+  ],
+  CAFE_CHAIRS: [
+    { x0:2.1, y0:3.35, x1:2.42, y1:3.65 }, { x0:3.38, y0:3.35, x1:3.7, y1:3.65 },
+    { x0:2.1, y0:5.35, x1:2.42, y1:5.65 }, { x0:3.38, y0:5.35, x1:3.7, y1:5.65 }
+  ],
+
   quest: { stage: 0 },
 
   DIALOGUE: {
@@ -2244,12 +2295,20 @@ const Explore = {
       this.petImg.src = spriteImgEl.src;
       if (spriteImgEl.complete && spriteImgEl.naturalWidth){ this.petImgLoaded = true; }
     }
+    this.scene = 'street';
+    this.FLOOR_W = this.STREET_FLOOR_W;
+    this.FLOOR_H = this.STREET_FLOOR_H;
+    this.blockers = this.streetBlockers;
+    this.npcs = this.streetNpcs;
+    this.doorNear = false;
+    this.doorDismissed = false;
     this.player.x = 8; this.player.y = 7.5;
     this.keys = {};
     this.eLocked = false;
     this.dialogueOpen = false;
     document.getElementById('exploreDialogue').style.display = 'none';
     document.getElementById('explorePrompt').style.display = 'none';
+    document.getElementById('exploreDoorPrompt').style.display = 'none';
     document.getElementById('exploreHint').style.display = 'block';
     this.updateQuestLabel();
     this.resize();
@@ -2424,6 +2483,64 @@ const Explore = {
         hintEl.style.display = 'block';
       }
     }
+
+    // café door: auto-prompt when you walk up to it, click Yes/No to decide
+    const doorPromptEl = document.getElementById('exploreDoorPrompt');
+    const doorTextEl = document.getElementById('exploreDoorText');
+    const doorTarget = this.scene === 'cafe' ? this.CAFE_EXIT_DOOR : this.CAFE_DOOR;
+    const doorDist = Math.hypot(doorTarget.x - this.player.x, doorTarget.y - this.player.y);
+    if (doorDist < this.DOOR_RADIUS){
+      if (!this.doorDismissed){
+        this.doorNear = true;
+        doorTextEl.textContent = this.scene === 'cafe' ? 'Leave the café?' : 'Enter the café?';
+        doorPromptEl.style.display = 'block';
+      }
+    } else {
+      this.doorNear = false;
+      this.doorDismissed = false;
+      doorPromptEl.style.display = 'none';
+    }
+  },
+
+  enterCafe(){
+    if (this.scene === 'cafe') return;
+    this.streetPlayerPos = { x: this.player.x, y: this.player.y };
+    this.scene = 'cafe';
+    this.FLOOR_W = this.CAFE_FLOOR_W;
+    this.FLOOR_H = this.CAFE_FLOOR_H;
+    this.blockers = this.cafeBlockers;
+    this.npcs = [];
+    this.player.x = this.CAFE_SPAWN.x;
+    this.player.y = this.CAFE_SPAWN.y;
+    this.doorNear = false;
+    this.doorDismissed = true;
+    document.getElementById('exploreDoorPrompt').style.display = 'none';
+    document.getElementById('exploreHint').textContent = 'WASD / Arrow keys to move';
+  },
+
+  exitCafe(){
+    if (this.scene !== 'cafe') return;
+    this.scene = 'street';
+    this.FLOOR_W = this.STREET_FLOOR_W;
+    this.FLOOR_H = this.STREET_FLOOR_H;
+    this.blockers = this.streetBlockers;
+    this.npcs = this.streetNpcs;
+    const pos = this.streetPlayerPos || { x: 8, y: 7.5 };
+    this.player.x = pos.x;
+    this.player.y = pos.y;
+    this.doorNear = false;
+    this.doorDismissed = true;
+    document.getElementById('exploreDoorPrompt').style.display = 'none';
+    document.getElementById('exploreHint').textContent = 'WASD / Arrow keys to move · E to talk';
+  },
+
+  confirmDoor(){
+    if (this.scene === 'cafe') this.exitCafe(); else this.enterCafe();
+  },
+
+  dismissDoor(){
+    this.doorDismissed = true;
+    document.getElementById('exploreDoorPrompt').style.display = 'none';
   },
 
   proj(x, y, z, origin){
@@ -2543,6 +2660,11 @@ const Explore = {
   },
 
   draw(){
+    if (this.scene === 'cafe'){ this.drawCafeInterior(); return; }
+    this.drawStreet();
+  },
+
+  drawStreet(){
     const ctx = this.ctx;
     if (!ctx) return;
     const cw = this.cssW, ch = this.cssH;
@@ -2637,6 +2759,7 @@ const Explore = {
     this.walls.forEach(w=>{
       drawables.push({ depth: w.y0 - 0.5, draw: ()=> this.drawBox(ctx, origin, w.x0,w.y0,w.x1,w.y1, 1.6, '#a85445','#8a4436','#733a2e', stroke) });
     });
+    drawables.push({ depth: 100, draw: ()=> this.drawCafeSignage(ctx, origin, stroke) });
 
     // park landmarks
     this.PARK_TREES.forEach(([x,y])=>{
@@ -2665,6 +2788,98 @@ const Explore = {
     this.npcs.forEach(npc=>{
       drawables.push({ depth: npc.y, draw: ()=> this.drawCharacter(ctx, origin, npc.x, npc.y, npc.emoji, npc.id === this.activeNpcId) });
     });
+    drawables.push({ depth: this.player.y, draw: ()=> this.drawCharacter(ctx, origin, this.player.x, this.player.y, '\u{1F9D1}', false, true) });
+
+    drawables.sort((a,b)=> a.depth - b.depth);
+    drawables.forEach(d=> d.draw());
+  },
+
+  drawCafeSignage(ctx, origin, stroke){
+    // sign board above the front wall
+    const boardPts = [
+      this.proj(11.3,3.02,1.75,origin), this.proj(13.7,3.02,1.75,origin),
+      this.proj(13.7,3.02,2.05,origin), this.proj(11.3,3.02,2.05,origin)
+    ];
+    this.poly(ctx, boardPts, '#f4ead8', stroke);
+    const boardCenter = this.proj(12.5,3.02,1.9,origin);
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#5a3b26';
+    ctx.fillText('☕ CAFÉ', boardCenter.x, boardCenter.y);
+
+    // striped awning over the doorway
+    const stripeColors = ['#c1483d','#f4ead8','#c1483d','#f4ead8'];
+    for (let i=0;i<4;i++){
+      const y0 = 5.2 + i*0.3, y1 = y0+0.3;
+      const pts = [
+        this.proj(10.35,y0,1.42,origin), this.proj(11.05,y0,1.3,origin),
+        this.proj(11.05,y1,1.3,origin), this.proj(10.35,y1,1.42,origin)
+      ];
+      this.poly(ctx, pts, stripeColors[i], null);
+    }
+
+    // windows on the building's street-facing wall
+    [[4.1,4.9],[5.6,6.4]].forEach(([wy0,wy1])=>{
+      const pts = [
+        this.proj(14.51,wy0,0.55,origin), this.proj(14.51,wy1,0.55,origin),
+        this.proj(14.51,wy1,1.25,origin), this.proj(14.51,wy0,1.25,origin)
+      ];
+      this.poly(ctx, pts, '#bcd9e6', stroke);
+    });
+  },
+
+  drawCafeInterior(){
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const cw = this.cssW, ch = this.cssH;
+    ctx.clearRect(0,0,cw,ch);
+    ctx.fillStyle = '#f0e6d6';
+    ctx.fillRect(0,0,cw,ch);
+    const origin = this.computeOrigin();
+    const stroke = 'rgba(17,17,17,0.35)';
+
+    // wood floor
+    const floorPts = [
+      this.proj(0,0,0,origin), this.proj(this.FLOOR_W,0,0,origin),
+      this.proj(this.FLOOR_W,this.FLOOR_H,0,origin), this.proj(0,this.FLOOR_H,0,origin)
+    ];
+    this.poly(ctx, floorPts, '#c9a876', 'rgba(17,17,17,0.2)');
+
+    const drawables = [];
+    const bw = this.CAFE_BACK_WALL, lw = this.CAFE_LEFT_WALL;
+    drawables.push({ depth: bw.y0 - 0.5, draw: ()=> this.drawBox(ctx, origin, bw.x0,bw.y0,bw.x1,bw.y1, 2.0, '#e4d3ad','#cbb98f','#b3a279', stroke) });
+    drawables.push({ depth: lw.y0 - 0.5, draw: ()=> this.drawBox(ctx, origin, lw.x0,lw.y0,lw.x1,lw.y1, 2.0, '#e4d3ad','#cbb98f','#b3a279', stroke) });
+
+    const co = this.CAFE_COUNTER;
+    drawables.push({ depth: co.y1, draw: ()=>{
+      this.drawBox(ctx, origin, co.x0,co.y0,co.x1,co.y1, 1.0, '#8b5e3c','#734c30','#5f3f28', stroke);
+      const es = this.CAFE_ESPRESSO;
+      this.drawBox(ctx, origin, es.x0,es.y0,es.x1,es.y1, 0.5, '#4a4a4a','#3a3a3a','#2c2c2c', stroke);
+      const mug = this.CAFE_MUG;
+      const p = this.proj(mug.x, mug.y, 1.05, origin);
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, 7, 5, 0, 0, Math.PI*2);
+      ctx.fillStyle = '#e0574a'; ctx.fill();
+      ctx.strokeStyle = 'rgba(17,17,17,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+    }});
+
+    const sh = this.CAFE_SHELF;
+    drawables.push({ depth: sh.y1, draw: ()=>{
+      this.drawBox(ctx, origin, sh.x0,sh.y0,sh.x1,sh.y1, 1.3, '#a9865a','#8f6f49','#785d3c', stroke);
+      [0.15,0.5,0.85].forEach(f=>{
+        const py = sh.y0 + (sh.y1-sh.y0)*f;
+        const p = this.proj((sh.x0+sh.x1)/2, py, 1.35, origin);
+        ctx.beginPath(); ctx.ellipse(p.x, p.y, 5, 4, 0, 0, Math.PI*2);
+        ctx.fillStyle = '#f0c987'; ctx.fill();
+      });
+    }});
+
+    this.CAFE_TABLES.forEach(t=>{
+      drawables.push({ depth: t.y1, draw: ()=> this.drawBox(ctx, origin, t.x0,t.y0,t.x1,t.y1, 0.5, '#cbb994','#b6a37f','#a08d6b', stroke) });
+    });
+    this.CAFE_CHAIRS.forEach(c=>{
+      drawables.push({ depth: c.y1, draw: ()=> this.drawBox(ctx, origin, c.x0,c.y0,c.x1,c.y1, 0.4, '#6c8a5e','#5a7550','#495f42', stroke) });
+    });
+
     drawables.push({ depth: this.player.y, draw: ()=> this.drawCharacter(ctx, origin, this.player.x, this.player.y, '\u{1F9D1}', false, true) });
 
     drawables.sort((a,b)=> a.depth - b.depth);
@@ -2706,7 +2921,7 @@ const Explore = {
 };
 
 // combined collision list across every block's obstacles (built once — all geometry above is static)
-Explore.blockers = [
+Explore.streetBlockers = [
   ...Explore.desks,
   ...Explore.walls,
   Explore.table,
@@ -2718,6 +2933,17 @@ Explore.blockers = [
   (f=>({x0:f.x-f.r*0.85, y0:f.y-f.r*0.65, x1:f.x+f.r*0.85, y1:f.y+f.r*0.65}))(Explore.PLAZA_FOUNTAIN),
   ...Explore.PLAZA_BENCHES
 ];
+
+// café interior collision list (walls, counter, shelf, tables — chairs are decorative only)
+Explore.cafeBlockers = [
+  Explore.CAFE_BACK_WALL,
+  Explore.CAFE_LEFT_WALL,
+  Explore.CAFE_COUNTER,
+  Explore.CAFE_SHELF,
+  ...Explore.CAFE_TABLES
+];
+
+Explore.blockers = Explore.streetBlockers;
 
 document.getElementById('petSprite').addEventListener('click', ()=>{
   bouncePet();
@@ -2750,6 +2976,11 @@ if (exploreEBtn){
     try{ Explore.onInteract(); }catch(err){ console.error(err); }
   });
 }
+
+const exploreDoorYesBtn = document.getElementById('exploreDoorYes');
+if (exploreDoorYesBtn){ exploreDoorYesBtn.addEventListener('click', ()=>{ try{ Explore.confirmDoor(); }catch(err){ console.error(err); } }); }
+const exploreDoorNoBtn = document.getElementById('exploreDoorNo');
+if (exploreDoorNoBtn){ exploreDoorNoBtn.addEventListener('click', ()=>{ try{ Explore.dismissDoor(); }catch(err){ console.error(err); } }); }
 
 document.addEventListener('click', (e)=>{
   const wrap = document.querySelector('.pet-picker-wrap');
