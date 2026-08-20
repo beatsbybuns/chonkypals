@@ -77,7 +77,6 @@
   .pet-stage{ display:flex; flex-direction:column; align-items:center; position:absolute; left:50%; top:66%; transform:translate(-50%,-100%); z-index:2;}
   .pet-info-corner{ position:absolute; left:14px; bottom:10px; z-index:3; text-align:left; max-width:62%; }
   .pet-info-corner .pet-name{ margin-top:0; }
-  .pet-info-corner .sleep-bar-wrap{ margin:6px 0 0; text-align:left; }
   .pet-sprite{ font-size:84px; transition: transform .25s; }
   .pet-sprite img{ width:200px; height:auto; display:block; user-select:none; -webkit-user-drag:none; }
   .pet-sprite.bounce{ animation:bounce .5s ease; }
@@ -86,6 +85,7 @@
   .pet-name{ font-weight:800; margin-top:4px; text-transform:uppercase; letter-spacing:.02em; }
   .mood{ font-size:12px; color:var(--muted); }
   .sleep-bar-wrap{ width:120px; margin:6px auto 0; text-align:center; }
+  .sleep-bar-side{ position:absolute; right:14px; bottom:10px; z-index:3; width:96px; margin:0; text-align:right; }
   .sleep-bar{ height:4px; border-radius:999px; background:var(--track); overflow:hidden; }
   .sleep-bar-fill{ height:100%; background:var(--purple); opacity:.6; width:0%; transition:width 1s linear; }
   .sleep-bar-caption{ font-size:9px; color:var(--muted); margin-top:3px; }
@@ -290,10 +290,10 @@
     <div class="pet-info-corner">
       <div class="pet-name" id="petNameLabel">Your Pet</div>
       <div class="mood" id="moodLabel">feeling okay</div>
-      <div class="sleep-bar-wrap" id="sleepBarWrap" style="display:none;">
-        <div class="sleep-bar"><div class="sleep-bar-fill" id="sleepBarFill"></div></div>
-        <div class="sleep-bar-caption" id="sleepBarCaption"></div>
-      </div>
+    </div>
+    <div class="sleep-bar-wrap sleep-bar-side" id="sleepBarWrap" style="display:none;">
+      <div class="sleep-bar"><div class="sleep-bar-fill" id="sleepBarFill"></div></div>
+      <div class="sleep-bar-caption" id="sleepBarCaption"></div>
     </div>
   </div>
 
@@ -328,7 +328,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-19.11 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-19.12 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -2014,7 +2014,7 @@ const Explore = {
     if (isPlayer){
       ctx.font = 'bold 10px sans-serif';
       ctx.fillStyle = '#111';
-      ctx.fillText('YOU', head.x, head.y + 24);
+      ctx.fillText('your pet', head.x, head.y + 24);
     }
   }
 };
