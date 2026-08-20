@@ -434,7 +434,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.38 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.39 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -535,7 +535,7 @@
 
     <div class="help-section">
       <div class="help-section-title">Sleep</div>
-      <p>Puts your pet to sleep so Energy regenerates quickly (about 20 points per hour) instead of draining. The whole screen switches to a dark theme while your pet sleeps. Heads up — Energy drains a bit faster as it gets close to 10pm your local time, so it's a good time to tuck your pet in.</p>
+      <p>Puts your pet to sleep so Energy regenerates quickly (about 20 points per hour) instead of draining. The whole screen switches to a dark theme while your pet sleeps. Heads up — Energy drains 1.5x faster between 10pm and 4am your local time, then returns to normal the rest of the day, so late night is a good time to tuck your pet in.</p>
     </div>
 
     <div class="help-section">
@@ -842,12 +842,8 @@ function clamp(v){ return Math.max(0, Math.min(100, v)); }
 function energyDecayMultiplier(){
   const now = new Date();
   const hour = now.getHours() + now.getMinutes()/60;
-  if (hour >= 20 && hour < 22){
-    const t = (hour - 20) / 2; // ramps 0 -> 1 between 8pm and 10pm
-    return 1 + t * 0.5; // up to 1.5x right at 10pm
-  }
-  if (hour >= 22 || hour < 6) return 1.5; // stays elevated overnight
-  return 1;
+  if (hour >= 22 || hour < 4) return 1.5; // faster decay 10pm-4am your local time
+  return 1; // normal decay the rest of the day
 }
 
 function applyDecay(){
