@@ -328,7 +328,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-19.12 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-19.13 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -1665,6 +1665,9 @@ const Explore = {
   dialogueNpcId: null,
   activeNpcId: null,
 
+  petImg: null,
+  petImgLoaded: false,
+
   player: { x: 7, y: 6.5 },
 
   npcs: [
@@ -1723,6 +1726,15 @@ const Explore = {
     view.classList.add('open');
     this.canvas = document.getElementById('exploreCanvas');
     this.ctx = this.canvas.getContext('2d');
+    if (!this.petImg){
+      const spriteImgEl = document.querySelector('#petSprite img');
+      if (spriteImgEl){
+        this.petImg = new Image();
+        this.petImg.onload = ()=>{ this.petImgLoaded = true; };
+        this.petImg.src = spriteImgEl.src;
+        if (spriteImgEl.complete && spriteImgEl.naturalWidth){ this.petImgLoaded = true; }
+      }
+    }
     this.player.x = 7; this.player.y = 6.5;
     this.keys = {};
     this.eLocked = false;
@@ -2007,10 +2019,18 @@ const Explore = {
       ctx.stroke();
     }
     const head = this.proj(x, y, 0.85, origin);
-    ctx.font = '30px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(emoji, head.x, head.y);
+    if (isPlayer && this.petImgLoaded && this.petImg){
+      const iw = this.petImg.naturalWidth || 1;
+      const ih = this.petImg.naturalHeight || 1;
+      const targetH = 40;
+      const targetW = targetH * (iw / ih);
+      ctx.drawImage(this.petImg, head.x - targetW/2, head.y - targetH/2, targetW, targetH);
+    } else {
+      ctx.font = '30px sans-serif';
+      ctx.fillText(emoji, head.x, head.y);
+    }
     if (isPlayer){
       ctx.font = 'bold 10px sans-serif';
       ctx.fillStyle = '#111';
