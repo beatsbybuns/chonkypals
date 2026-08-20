@@ -420,7 +420,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.29 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.30 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -2121,7 +2121,7 @@ const FireGame = {
   }
 };
 
-/* ---------------- Explore Mode: isometric tech office ---------------- */
+/* ---------------- Explore Mode: downtown San Francisco street ---------------- */
 const Explore = {
   COS30: Math.cos(Math.PI/6),
   SIN30: Math.sin(Math.PI/6),
@@ -2150,8 +2150,8 @@ const Explore = {
   player: { x: 7, y: 6.5 },
 
   npcs: [
-    { id:'dana', name:'Dana', x:5.8, y:2.7, emoji:'\u{1F469}‍\u{1F4BB}' },
-    { id:'sam',  name:'Sam',  x:10.3, y:4.8, emoji:'\u{1F9D1}‍\u{1F4BC}' }
+    { id:'dana', name:'Dana', x:5.8, y:2.7, emoji:'\u{1F469}‍\u{1F373}' },
+    { id:'sam',  name:'Sam',  x:10.3, y:4.8, emoji:'\u{1F468}‍\u{1F3A4}' }
   ],
 
   desks: [
@@ -2175,7 +2175,7 @@ const Explore = {
 
   DIALOGUE: {
     dana: {
-      0: { lines: ["Hey! Have you seen my coffee mug anywhere?", "I think I left it in the meeting room — could you go check with Sam?"],
+      0: { lines: ["Hey! Have you seen my coffee mug anywhere?", "I think I left it inside the café — could you go check with Sam?"],
            after: ()=>{ Explore.quest.stage = 1; Explore.updateQuestLabel(); } },
       1: { lines: ["Any luck finding my mug? Sam should know where it is."] },
       2: { lines: ["Oh perfect, thank you so much!", "Here, take this for helping out."],
@@ -2183,8 +2183,8 @@ const Explore = {
       3: { lines: ["Thanks again for finding my mug!"] }
     },
     sam: {
-      0: { lines: ["Oh, hi! Just prepping for a meeting."] },
-      1: { lines: ["Dana's mug? Yeah, it's on the shelf by the window in the break area.", "Go let them know!"],
+      0: { lines: ["Oh, hi! Just playing some tunes for tips."] },
+      1: { lines: ["Dana's mug? Yeah, it's on the counter by the window inside the café.", "Go let them know!"],
            after: ()=>{ Explore.quest.stage = 2; Explore.updateQuestLabel(); } },
       2: { lines: ["Hope Dana found that mug!"] },
       3: { lines: ["Hope Dana found that mug!"] }
@@ -2440,39 +2440,91 @@ const Explore = {
     this.poly(ctx, topPts, top, stroke);
   },
 
+  drawTreeCanopy(ctx, origin, x, y, z, r, color){
+    const p = this.proj(x, y, z, origin);
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, r*this.SCALE, r*this.SCALE*0.8, 0, 0, Math.PI*2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(17,17,17,0.35)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  },
+
+  drawStreetlamp(ctx, origin, x, y){
+    this.drawBox(ctx, origin, x-0.05, y-0.05, x+0.05, y+0.05, 1.3, '#3a3a3a','#2c2c2c','#232323', 'rgba(17,17,17,0.35)');
+    const p = this.proj(x, y, 1.3, origin);
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y-6, 9, 9, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#ffe9a8';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(17,17,17,0.3)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  },
+
   draw(){
     const ctx = this.ctx;
     if (!ctx) return;
     const cw = this.cssW, ch = this.cssH;
     ctx.clearRect(0,0,cw,ch);
-    ctx.fillStyle = '#dbe4ee';
+    ctx.fillStyle = '#bfe1ee';
     ctx.fillRect(0,0,cw,ch);
+    // downtown skyline silhouette
+    ctx.fillStyle = 'rgba(112,134,156,0.4)';
+    const skyline = [[0.00,58,0.09],[0.09,88,0.07],[0.17,46,0.10],[0.28,105,0.06],[0.36,66,0.11],[0.49,96,0.08],[0.59,52,0.09],[0.70,118,0.07],[0.80,72,0.10],[0.91,60,0.09]];
+    skyline.forEach(([relX,h,relW])=>{
+      ctx.fillRect(cw*relX, ch*0.30 - h, cw*relW, h);
+    });
     const origin = this.computeOrigin();
     const stroke = 'rgba(17,17,17,0.35)';
 
-    // floor
+    // sidewalk floor
     const floorPts = [
       this.proj(0,0,0,origin), this.proj(this.FLOOR_W,0,0,origin),
       this.proj(this.FLOOR_W,this.FLOOR_H,0,origin), this.proj(0,this.FLOOR_H,0,origin)
     ];
-    this.poly(ctx, floorPts, '#eef2f7', 'rgba(17,17,17,0.2)');
-    // meeting room floor tint
+    this.poly(ctx, floorPts, '#d9d3c8', 'rgba(17,17,17,0.2)');
+    // street strip along the bottom edge, with a painted crosswalk
+    const streetPts = [
+      this.proj(0,this.FLOOR_H-1.6,0,origin), this.proj(this.FLOOR_W,this.FLOOR_H-1.6,0,origin),
+      this.proj(this.FLOOR_W,this.FLOOR_H,0,origin), this.proj(0,this.FLOOR_H,0,origin)
+    ];
+    this.poly(ctx, streetPts, '#55585c', 'rgba(17,17,17,0.25)');
+    for (let i=0;i<5;i++){
+      const sx0 = 1 + i*0.4, sx1 = sx0 + 0.22;
+      const stripePts = [
+        this.proj(sx0,this.FLOOR_H-1.55,0,origin), this.proj(sx1,this.FLOOR_H-1.55,0,origin),
+        this.proj(sx1,this.FLOOR_H-0.05,0,origin), this.proj(sx0,this.FLOOR_H-0.05,0,origin)
+      ];
+      this.poly(ctx, stripePts, 'rgba(255,255,255,0.85)', null);
+    }
+    // café patio tint
     const mrPts = [
       this.proj(9.5,2,0,origin), this.proj(13.5,2,0,origin),
       this.proj(13.5,7,0,origin), this.proj(9.5,7,0,origin)
     ];
-    this.poly(ctx, mrPts, '#e2ddf5', 'rgba(17,17,17,0.15)');
+    this.poly(ctx, mrPts, '#f2ddc0', 'rgba(17,17,17,0.15)');
 
-    // build depth-sorted drawable list (desks, table, npcs, player); walls drawn after (they're tall, drawn per-segment by depth too)
+    // build depth-sorted drawable list (street props, café building, kiosk, npcs, player)
     const drawables = [];
-    this.desks.forEach(d=>{
-      drawables.push({ depth: d.y1, draw: ()=> this.drawBox(ctx, origin, d.x0,d.y0,d.x1,d.y1, 0.55, '#d8b98c','#c2a276','#ad8f66', stroke) });
-      const mw = 0.5, mx0 = d.x0 + (d.x1-d.x0-mw)/2, my0 = d.y0 + 0.05;
-      drawables.push({ depth: d.y1 + 0.01, draw: ()=> this.drawBox(ctx, origin, mx0, my0, mx0+mw, my0+0.12, 0.42, '#3a3a42','#2b2b31','#202024', stroke) });
+    this.desks.forEach((d,i)=>{
+      if (i % 2 === 0){
+        // curbside tree
+        const cx = (d.x0+d.x1)/2, cy = (d.y0+d.y1)/2, tw = 0.3;
+        drawables.push({ depth: d.y1, draw: ()=>{
+          this.drawBox(ctx, origin, cx-tw/2, d.y0, cx+tw/2, d.y1, 0.5, '#8b5e3c','#734c30','#5f3f28', stroke);
+          this.drawTreeCanopy(ctx, origin, cx, cy, 0.5, 0.62, '#4c8c5b');
+        }});
+      } else {
+        // park bench
+        drawables.push({ depth: d.y1, draw: ()=> this.drawBox(ctx, origin, d.x0,d.y0,d.x1,d.y1, 0.3, '#6c8a5e','#5a7550','#495f42', stroke) });
+      }
     });
-    drawables.push({ depth: this.table.y1, draw: ()=> this.drawBox(ctx, origin, this.table.x0,this.table.y0,this.table.x1,this.table.y1, 0.42, '#cbb994','#b6a37f','#a08d6b', stroke) });
+    drawables.push({ depth: 3.0, draw: ()=> this.drawStreetlamp(ctx, origin, 0.8, 3.0) });
+    drawables.push({ depth: this.table.y1, draw: ()=> this.drawBox(ctx, origin, this.table.x0,this.table.y0,this.table.x1,this.table.y1, 0.55, '#e0574a','#c1483d','#a53c32', stroke) });
     this.walls.forEach(w=>{
-      drawables.push({ depth: w.y0 - 0.5, draw: ()=> this.drawBox(ctx, origin, w.x0,w.y0,w.x1,w.y1, 1.6, '#cfd8e3','#b7c2d0','#a3aebd', stroke) });
+      drawables.push({ depth: w.y0 - 0.5, draw: ()=> this.drawBox(ctx, origin, w.x0,w.y0,w.x1,w.y1, 1.6, '#a85445','#8a4436','#733a2e', stroke) });
     });
     this.npcs.forEach(npc=>{
       drawables.push({ depth: npc.y, draw: ()=> this.drawCharacter(ctx, origin, npc.x, npc.y, npc.emoji, npc.id === this.activeNpcId) });
