@@ -230,6 +230,7 @@
   }
   .shop-item button:disabled{ background:var(--surface); color:var(--ink); border-color:var(--border); opacity:1; }
   .owned-badge{ font-size:9px; background:var(--green); border:2px solid var(--border); font-weight:800; text-transform:uppercase; border-radius:999px; padding:2px 8px; }
+  .free-feed-countdown{ font-size:9px; opacity:.55; font-weight:700; margin-top:2px; font-variant-numeric:tabular-nums; }
   .shop-item.inv-clickable{ cursor:pointer; }
   .shop-item.inv-clickable:active{ transform:scale(.96); }
   .item-detail-emoji{ font-size:48px; text-align:center; margin:4px 0 10px; }
@@ -433,7 +434,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.35 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.36 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -971,6 +972,24 @@ function updateSleepBar(){
   caption.textContent = `+1 energy in ${m}:${String(s).padStart(2, '0')}`;
 }
 
+function formatMMSS(ms){
+  const totalSec = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(totalSec / 60), s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function updateFreeFeedCountdown(){
+  const el = document.getElementById('freeFeedCountdown');
+  if (!el) return;
+  const nextAt = Number(el.dataset.next);
+  const remaining = nextAt - Date.now();
+  if (remaining <= 0){
+    Game.renderFeedPicker(); // a slot just freed up — refresh the badge/countdown
+    return;
+  }
+  el.textContent = `Ready in ${formatMMSS(remaining)}`;
+}
+
 function log(msg){
   const el = document.getElementById('logLine');
   el.textContent = msg;
@@ -1113,12 +1132,19 @@ const Game = {
     const body = document.getElementById('feedBody');
     const foodItems = CATALOG.food.filter(i => (state.inventory.food[i.id]||0) > 0);
     const now = Date.now();
-    const freeLeft = 2 - (state.freeFeedTimes||[]).filter(t => now - t < 3600000).length;
+    const activeFreeTimes = (state.freeFeedTimes||[]).filter(t => now - t < 3600000);
+    const freeLeft = 2 - activeFreeTimes.length;
+    let countdownHtml = '';
+    if (freeLeft <= 0 && activeFreeTimes.length){
+      const nextAvailableAt = Math.min(...activeFreeTimes) + 3600000;
+      countdownHtml = `<div class="free-feed-countdown" id="freeFeedCountdown" data-next="${nextAvailableAt}">Ready in ${formatMMSS(nextAvailableAt - now)}</div>`;
+    }
     const freeCard = `
       <div class="shop-item inv-clickable" onclick="Game.feedFree()">
         <div class="emoji">🍽️</div>
         <div>Small Snack</div>
         <span class="owned-badge">${freeLeft>0 ? freeLeft+' free left' : 'none left'}</span>
+        ${countdownHtml}
       </div>`;
     if (!foodItems.length){
       body.innerHTML = `<div class="inv-empty" style="margin-bottom:10px;">No food in your inventory yet — visit the Shop!</div><div class="shop-grid">${freeCard}</div>`;
@@ -3068,6 +3094,7 @@ updateClock();
 updateAmbience();
 setInterval(()=>{ applyDecay(); render(); }, 30000); // live tick every 30s
 setInterval(updateSleepBar, 1000); // smooth countdown while sleeping
+setInterval(updateFreeFeedCountdown, 1000); // live countdown for the free Small Snack in the Feed window
 setInterval(updateClock, 15000); // refresh local clock
 setInterval(updateAmbience, 60000); // refresh time-of-day ambience
 </script>
