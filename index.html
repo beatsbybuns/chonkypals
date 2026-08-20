@@ -350,6 +350,29 @@
     flex:1; border:2px solid #111; border-radius:999px; padding:8px 0; font-size:12px;
     font-weight:800; text-transform:uppercase; cursor:pointer;
   }
+  .explore-catch-bar{
+    position:absolute; left:50%; bottom:60px; transform:translateX(-50%); width:min(220px, 70%);
+    text-align:center;
+  }
+  .explore-catch-bar-label{
+    color:#fff; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.02em;
+    margin-bottom:6px; text-shadow:0 1px 3px rgba(0,0,0,.6);
+  }
+  .explore-catch-bar-track{
+    background:rgba(17,17,17,.5); border:2px solid #111; border-radius:999px; height:14px; overflow:hidden;
+  }
+  .explore-catch-bar-fill{ height:100%; width:0%; background:#7553FF; }
+  .explore-catch-modal{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(300px, 85%);
+    background:#fff; border:2px solid #111; border-radius:16px; padding:20px 18px; text-align:center;
+    box-shadow:6px 6px 0 0 #000; z-index:5;
+  }
+  .explore-catch-modal-title{ font-size:18px; font-weight:800; margin-bottom:8px; }
+  .explore-catch-modal-body{ font-size:13px; color:#333; line-height:1.5; margin-bottom:14px; }
+  .explore-catch-modal-btn{
+    width:100%; border:2px solid #111; border-radius:999px; padding:10px 0; font-weight:800;
+    text-transform:uppercase; font-size:12px; cursor:pointer; background:#7553FF; color:#fff;
+  }
   .explore-door-yes{ background:#7553FF; color:#fff; }
   .explore-door-no{ background:#fff; color:#111; }
   .explore-touch-controls{ display:none; }
@@ -468,7 +491,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.42 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.43 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -589,7 +612,7 @@
 
     <div class="help-section">
       <div class="help-section-title">The beach &amp; fishing</div>
-      <p>Head south past the plaza to find the beach, with palm trees, umbrellas, and fish swimming in the water. Walk up to one of the wooden fishing posts along the shore and press E to cast your line, then watch for the "!" — press E again the instant it appears to reel in a catch. Common fish pay a few coins, rarer ones (like the Golden Koi) pay a lot more. Wait too long or reel in too early and the fish gets away, but each spot resets after about 12 seconds.</p>
+      <p>Head south past the plaza to find the beach, with palm trees, umbrellas, and fish swimming in the water. Walk up to one of the wooden fishing posts along the shore and press E to cast your line. When you see the "!", hold E to fill the reel-in bar — let go and it drains back down, so keep holding until it's full. Land the catch and you'll get a Fish added straight to your inventory, worth +25 hunger when you feed it to your pet. Reel in too early or let the fish get away and the spot resets after about 12 seconds.</p>
     </div>
 
     <div class="help-section">
@@ -692,6 +715,15 @@
     <div class="explore-dialogue-text" id="exploreDialogueText"></div>
     <div class="explore-dialogue-hint">press E or click to continue</div>
   </div>
+  <div class="explore-catch-bar" id="exploreCatchBar" style="display:none;">
+    <div class="explore-catch-bar-label">Hold E to reel it in!</div>
+    <div class="explore-catch-bar-track"><div class="explore-catch-bar-fill" id="exploreCatchBarFill"></div></div>
+  </div>
+  <div class="explore-catch-modal" id="exploreCatchModal" style="display:none;">
+    <div class="explore-catch-modal-title">🎣 Caught it!</div>
+    <div class="explore-catch-modal-body" id="exploreCatchModalBody"></div>
+    <button class="explore-catch-modal-btn" onclick="Explore.dismissCatch()">Nice!</button>
+  </div>
   <div class="explore-touch-controls" id="exploreTouchControls">
     <div class="explore-dpad">
       <button class="dpad-btn dpad-up" data-key="arrowup" aria-label="Move up">▲</button>
@@ -725,6 +757,7 @@ const CATALOG = {
     {id:'pizza', name:'Pizza', emoji:'🍕', cost:12, hunger:35},
     {id:'cake', name:'Cake', emoji:'🍰', cost:20, hunger:55},
     {id:'coffee', name:'Coffee', emoji:'☕', cost:15, energyMin:5, energyMax:10},
+     {id:'fish', name:'Fish', emoji:'\u{1F41F}', hunger:25, noShop:true},
     {id:'celsius', name:'Celsius', emoji:'🥤', icon:'<img src="data:image/png;base64,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" alt="Celsius">', cost:25, energy:40},
   ],
   toy: [
@@ -1341,6 +1374,7 @@ const Game = {
     const grid = document.getElementById('shopGrid');
     grid.innerHTML = '';
     CATALOG[shopTab].forEach(item=>{
+      if (item.noShop) return; // obtainable only through gameplay (e.g. fishing), not for sale
       const owned = shopTab==='decor' ? state.ownedDecor.includes(item.id)
                   : shopTab==='wear' ? (state.ownedWear[item.id]||0)
                   : (state.inventory[shopTab][item.id]||0);
@@ -2484,19 +2518,22 @@ const Explore = {
     { y:30.2, x0:20, x1:29, color:'#6ec9a0', speed:0.55, phase:2.2 }
   ],
 
-  // fishing spots along the shoreline — walk up and press E to cast, then press E
-  // again the instant you get a bite. Miss the window and the fish gets away.
+  // fishing spots along the shoreline — walk up and press E to cast, then once a
+  // fish bites, hold E to fill the reel-in bar before the window closes. Let go
+  // for too long and the bar drains back down, same spirit as Fire Duty's hose.
   FISH_COOLDOWN_MS: 12 * 1000,
   FISH_BITE_WAIT_MIN: 1500,
   FISH_BITE_WAIT_MAX: 3500,
-  FISH_BITE_WINDOW_MS: 900,
+  FISH_BITE_WINDOW_MS: 3500,
+  FISH_REEL_FILL_PER_SEC: 0.8,
+  FISH_REEL_DECAY_PER_SEC: 0.35,
   FISHING_SPOTS: [
     { id:'fs1', x: 8,  y: 29.2 },
     { id:'fs2', x: 16, y: 29.2 },
     { id:'fs3', x: 24, y: 29.2 }
   ],
   activeFishSpotId: null,
-  fishing: null, // { spotId, phase:'waiting'|'bite', biteAt, windowEnd }
+  fishing: null, // { spotId, phase:'waiting'|'bite', biteAt, windowEnd, reelProgress }
 
   // ---- café door + interior scene ----
   scene: 'street', // 'street' | 'cafe'
@@ -2571,6 +2608,12 @@ const Explore = {
       if (spriteImgEl.complete && spriteImgEl.naturalWidth){ this.petImgLoaded = true; }
     }
     this.scene = 'street';
+    this.fishing = null;
+    this.activeFishSpotId = null;
+    const catchBarEl0 = document.getElementById('exploreCatchBar');
+    if (catchBarEl0) catchBarEl0.style.display = 'none';
+    const catchModalEl0 = document.getElementById('exploreCatchModal');
+    if (catchModalEl0) catchModalEl0.style.display = 'none';
     this.FLOOR_W = this.STREET_FLOOR_W;
     this.FLOOR_H = this.STREET_FLOOR_H;
     this.blockers = this.streetBlockers;
@@ -2657,7 +2700,10 @@ const Explore = {
 
   onInteract(){
     if (this.dialogueOpen){ this.advanceDialogue(); return; }
-    if (this.fishing){ this.reelIn(); return; }
+    // during 'waiting' a tap reels in early (abort); during 'bite' the catch is
+    // driven by holding E every frame in update(), so a tap here does nothing
+    if (this.fishing && this.fishing.phase === 'waiting'){ this.abortCast(); return; }
+    if (this.fishing) return;
     if (this.activeNpcId){ this.openDialogue(this.activeNpcId); return; }
     if (this.activeBushId){ this.shakeBush(this.activeBushId); return; }
     if (this.activeFishSpotId){ this.castLine(this.activeFishSpotId); }
@@ -2669,34 +2715,46 @@ const Explore = {
     const onCooldown = (Date.now() - (state.fishingCooldowns[id]||0)) < this.FISH_COOLDOWN_MS;
     if (onCooldown) return;
     const waitMs = this.FISH_BITE_WAIT_MIN + Math.random() * (this.FISH_BITE_WAIT_MAX - this.FISH_BITE_WAIT_MIN);
-    this.fishing = { spotId: id, phase: 'waiting', biteAt: Date.now() + waitMs, windowEnd: 0 };
+    this.fishing = { spotId: id, phase: 'waiting', biteAt: Date.now() + waitMs, windowEnd: 0, reelProgress: 0 };
     this.activeFishSpotId = null;
     log('You cast your line — wait for a bite...');
   },
 
-  reelIn(){
+  abortCast(){
     const f = this.fishing;
     if (!f) return;
-    if (f.phase === 'waiting'){
-      state.fishingCooldowns[f.spotId] = Date.now();
-      this.fishing = null;
-      log('No bites yet — you reeled in too early.');
-      return;
-    }
-    // phase === 'bite': a successful catch!
+    state.fishingCooldowns[f.spotId] = Date.now();
+    this.fishing = null;
+    log('No bites yet — you reeled in too early.');
+  },
+
+  // called automatically from update() once the reel-in bar fills to 100% while
+  // holding E during the 'bite' phase
+  catchFish(){
+    const f = this.fishing;
+    if (!f) return;
     state.fishingCooldowns[f.spotId] = Date.now();
     const spot = this.FISHING_SPOTS.find(s=>s.id===f.spotId);
-    const roll = Math.random();
-    let coins, name;
-    if (roll < 0.08){ coins = 40; name = 'Golden Koi'; }
-    else if (roll < 0.35){ coins = 18; name = ['Salmon','Snapper'][Math.floor(Math.random()*2)]; }
-    else { coins = 8; name = ['Sardine','Perch','Bass'][Math.floor(Math.random()*3)]; }
-    state.coins += coins;
+    state.inventory.food.fish = (state.inventory.food.fish || 0) + 1;
     state.fishCaughtTotal = (state.fishCaughtTotal || 0) + 1;
-    log(`You caught a ${name}! (+${coins} coins)`);
     if (spot) this.spawnFishSplash(spot.x, spot.y);
     this.fishing = null;
+    const catchBarEl = document.getElementById('exploreCatchBar');
+    if (catchBarEl) catchBarEl.style.display = 'none';
+    this.showCatchModal();
     try{ render(); }catch(e){ console.error('render failed', e); }
+  },
+
+  showCatchModal(){
+    const bodyEl = document.getElementById('exploreCatchModalBody');
+    if (bodyEl) bodyEl.textContent = `You reeled in a fish! +1 Fish added to your inventory — feed it to your pet for +25 hunger.`;
+    const modalEl = document.getElementById('exploreCatchModal');
+    if (modalEl) modalEl.style.display = 'block';
+  },
+
+  dismissCatch(){
+    const modalEl = document.getElementById('exploreCatchModal');
+    if (modalEl) modalEl.style.display = 'none';
   },
 
   spawnFishSplash(x, y){
@@ -2870,18 +2928,34 @@ const Explore = {
     }
     this.activeBushId = nearestBush ? nearestBush.id : null;
 
-    // resolve an in-progress fishing cast: waiting -> bite -> (caught or got away)
+    // resolve an in-progress fishing cast: waiting -> bite -> hold E to fill the
+    // reel-in bar (decays when you let go, same spirit as Fire Duty's hose) ->
+    // caught, or the window closes first and it gets away
+    const catchBarEl = document.getElementById('exploreCatchBar');
+    const catchBarFillEl = document.getElementById('exploreCatchBarFill');
     if (this.fishing){
       const now = Date.now();
       if (this.fishing.phase === 'waiting' && now >= this.fishing.biteAt){
         this.fishing.phase = 'bite';
         this.fishing.windowEnd = now + this.FISH_BITE_WINDOW_MS;
-      } else if (this.fishing.phase === 'bite' && now > this.fishing.windowEnd){
-        state.fishingCooldowns[this.fishing.spotId] = now;
-        this.fishing = null;
-        log('The fish got away!');
+        this.fishing.reelProgress = 0;
+      } else if (this.fishing.phase === 'bite'){
+        if (this.keys['e']){
+          this.fishing.reelProgress = Math.min(1, this.fishing.reelProgress + this.FISH_REEL_FILL_PER_SEC * dt);
+        } else {
+          this.fishing.reelProgress = Math.max(0, this.fishing.reelProgress - this.FISH_REEL_DECAY_PER_SEC * dt);
+        }
+        if (catchBarFillEl) catchBarFillEl.style.width = Math.round(this.fishing.reelProgress * 100) + '%';
+        if (this.fishing.reelProgress >= 1){
+          this.catchFish();
+        } else if (now > this.fishing.windowEnd){
+          state.fishingCooldowns[this.fishing.spotId] = now;
+          this.fishing = null;
+          log('The fish got away!');
+        }
       }
     }
+    if (catchBarEl) catchBarEl.style.display = (this.fishing && this.fishing.phase === 'bite') ? 'block' : 'none';
 
     // proximity check for an available fishing spot (only when not busy with
     // an NPC, a bush, or already mid-cast at another spot)
@@ -2903,10 +2977,12 @@ const Explore = {
         promptEl.textContent = `Press E to talk to ${nearest.name}`;
         promptEl.style.display = 'block';
         hintEl.style.display = 'none';
+      } else if (this.fishing && this.fishing.phase === 'bite'){
+        // the dedicated catch bar owns the bottom of the screen during this phase
+        promptEl.style.display = 'none';
+        hintEl.style.display = 'none';
       } else if (this.fishing){
-        promptEl.textContent = this.fishing.phase === 'bite'
-          ? "Press E now — you've got a bite!"
-          : 'Waiting for a bite... (E to reel in early)';
+        promptEl.textContent = 'Waiting for a bite... (E to reel in early)';
         promptEl.style.display = 'block';
         hintEl.style.display = 'none';
       } else if (nearestBush){
