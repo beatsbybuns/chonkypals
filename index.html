@@ -434,7 +434,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.39 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.40 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -525,7 +525,7 @@
 
     <div class="help-section">
       <div class="help-section-title">Chat</div>
-      <p>Uses your microphone. Talk to your pet — the timer only fills up while you're actually speaking above a quiet room. Reach a full minute of talking to earn happiness, coins, and +10 enrichment.</p>
+      <p>Uses your microphone. Talk to your pet — the timer only fills up while you're actually speaking above a quiet room. Reach 30 seconds of talking to earn happiness, coins, and +10 enrichment.</p>
     </div>
 
     <div class="help-section">
@@ -546,6 +546,11 @@
     <div class="help-section">
       <div class="help-section-title">Multiple pets</div>
       <p>Each pet in the 🐾 picker (Log, Bunny, Toad) has its own name and its own Hunger, Happiness, and Energy — they live their lives independently, even decaying while you're not looking at them. Coins, food, toys, decor, and owned outfits are shared across all of them.</p>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">Coin bushes in Explore Mode</div>
+      <p>A few bushes around town are hiding coins — when one's ready, it'll sparkle. Walk up and press E to shake it loose: you'll get 1-4 coins, a mix of silver (+5) and gold (+15), added straight to your coin count. Each bush needs about 5 minutes to "regrow" before you can shake it again.</p>
     </div>
 
     <div class="help-section">
@@ -592,7 +597,7 @@
       <p style="font-size:13px;">Click the bugs before they vanish. 15 seconds!</p>
       <div style="font-size:13px;">Score: <b id="mgScore">0</b> &nbsp; Time: <b id="mgTime">15</b>s</div>
       <div class="catch-area" id="catchArea"></div>
-      <button class="btn-primary" id="mgStartBtn" onclick="Game.startMinigame()">Start</button>
+      <button class="btn-primary btn-celebrate" id="mgStartBtn" onclick="Game.startMinigame()">Start</button>
     </div>
   </div>
 </div>
@@ -768,6 +773,7 @@ function freshState(){
     decorOffsets: {},
     wearOffset: null,
     streak: { count: 0, lastDate: null },
+    bushCoinShakes: {},
     lastUpdate: Date.now()
   };
 }
@@ -807,6 +813,7 @@ Object.defineProperty(state, 'pet', {
 });
 
 if (!state.freeFeedTimes) state.freeFeedTimes = [];
+if (!state.bushCoinShakes) state.bushCoinShakes = {};
 if (!state.ownedDecor) state.ownedDecor = [...(state.placedDecor||[])];
 if (!state.decorOffsets) state.decorOffsets = {};
 if (state.wearOffset === undefined) state.wearOffset = null;
@@ -1808,7 +1815,7 @@ const Dance = {
 };
 
 const Chat = {
-  TARGET_MS: 60000,      // 1 full minute of cumulative speaking required
+  TARGET_MS: 30000,      // 30 seconds of cumulative speaking required
   SPEAK_THRESHOLD: 12,   // volume level (0-100 scale) above which counts as "speaking"
   stream: null,
   audioCtx: null,
@@ -1825,7 +1832,7 @@ const Chat = {
 
   renderMic(){
     document.getElementById('chatBody').innerHTML = `
-      <p style="font-size:13px;">Talk to your pet! Keep speaking until you've chatted for a full minute — the timer only counts while you're actually talking.</p>
+      <p style="font-size:13px;">Talk to your pet! Keep speaking until you've chatted for 30 seconds — the timer only counts while you're actually talking.</p>
       <div class="mic-wrap">
         <div class="chat-timer" id="chatTimer">0:00 / 1:00</div>
         <div class="mic-emoji" id="micEmoji">🎙️</div>
@@ -1843,7 +1850,7 @@ const Chat = {
     document.getElementById('chatBody').innerHTML = `
       <div class="dance-done">
         <div class="big-emoji">💬</div>
-        <p style="font-weight:bold;">Great chat — a whole minute of talking!</p>
+        <p style="font-weight:bold;">Great chat — 30 seconds of talking!</p>
         <button class="btn-primary btn-celebrate" id="chatWrapBtn" type="button">Wrap up the chat</button>
       </div>
     `;
@@ -1919,7 +1926,8 @@ const Chat = {
     if (statusEl) statusEl.textContent = speaking ? 'keep talking...' : 'stay quiet a sec, then start talking';
     if (timerEl){
       const secs = Math.floor(this.spokenMs/1000);
-      timerEl.textContent = `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')} / 1:00`;
+      const targetSecs = Math.floor(this.TARGET_MS/1000);
+      timerEl.textContent = `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')} / ${Math.floor(targetSecs/60)}:${String(targetSecs%60).padStart(2,'0')}`;
     }
     if (progressEl){
       progressEl.style.width = Math.round((this.spokenMs/this.TARGET_MS)*100) + '%';
@@ -2332,6 +2340,19 @@ const Explore = {
   STREET_BUSHES: [ [3.0,8.5], [7.0,8.5], [3.0,13.0], [30.0,15.0] ],
   FLOWER_BEDS: [ [7.5,1.3], [21.0,3.0], [28.0,7.0], [10.0,13.0], [24.4,20.0] ],
 
+  // bushes hiding coins — walk up and press E to shake one loose. Each shake drops
+  // 1-4 coins (silver +5, gold +15, mix randomized) and then needs time to "regrow"
+  // before it can be shaken again.
+  BUSH_COOLDOWN_MS: 5 * 60 * 1000,
+  COIN_BUSHES: [
+    { id:'cb1', x: 5.0, y: 9.2 },
+    { id:'cb2', x: 24.4, y: 8.6 },
+    { id:'cb3', x: 12.5, y: 13.0 },
+    { id:'cb4', x: 24.4, y: 13.6 }
+  ],
+  activeBushId: null,
+  coinBursts: [],
+
   // block footprints, used to paint the sidewalk apron around each block against the street
   BLOCK_FOOTPRINTS: [
     {x0:1, y0:1, x1:15, y1:10},
@@ -2499,7 +2520,59 @@ const Explore = {
 
   onInteract(){
     if (this.dialogueOpen){ this.advanceDialogue(); return; }
-    if (this.activeNpcId){ this.openDialogue(this.activeNpcId); }
+    if (this.activeNpcId){ this.openDialogue(this.activeNpcId); return; }
+    if (this.activeBushId){ this.shakeBush(this.activeBushId); }
+  },
+
+  shakeBush(id){
+    const bush = this.COIN_BUSHES.find(b=>b.id===id);
+    if (!bush) return;
+    const lastShake = state.bushCoinShakes[id] || 0;
+    if (Date.now() - lastShake < this.BUSH_COOLDOWN_MS) return;
+    state.bushCoinShakes[id] = Date.now();
+    this.activeBushId = null;
+
+    const count = 1 + Math.floor(Math.random() * 4); // 1-4 coins
+    let total = 0, silverCount = 0, goldCount = 0;
+    for (let i=0; i<count; i++){
+      if (Math.random() < 0.3){ total += 15; goldCount++; }
+      else { total += 5; silverCount++; }
+    }
+    state.coins += total;
+    const parts = [];
+    if (silverCount) parts.push(`${silverCount} silver`);
+    if (goldCount) parts.push(`${goldCount} gold`);
+    log(`Shook the bush — found ${parts.join(' + ')} (+${total} coins)!`);
+    this.spawnCoinBurst(bush.x, bush.y, silverCount, goldCount);
+    try{ render(); }catch(e){ console.error('render failed', e); }
+  },
+
+  spawnCoinBurst(x, y, silverCount, goldCount){
+    const pieces = [];
+    for (let i=0;i<silverCount;i++) pieces.push({ gold:false, angle: Math.random()*Math.PI*2, dist: 10+Math.random()*14 });
+    for (let i=0;i<goldCount;i++) pieces.push({ gold:true, angle: Math.random()*Math.PI*2, dist: 10+Math.random()*14 });
+    this.coinBursts.push({ x, y, start: performance.now(), pieces });
+  },
+
+  drawCoinBursts(ctx, origin){
+    const now = performance.now();
+    this.coinBursts = this.coinBursts.filter(b => now - b.start < 700);
+    this.coinBursts.forEach(b=>{
+      const t = (now - b.start) / 700;
+      const alpha = 1 - t;
+      const base = this.proj(b.x, b.y, 0.3 + t*0.6, origin);
+      b.pieces.forEach(p=>{
+        const px = base.x + Math.cos(p.angle) * p.dist * t;
+        const py = base.y + Math.sin(p.angle) * p.dist * t - t*10;
+        ctx.beginPath();
+        ctx.ellipse(px, py, 5, 5, 0, 0, Math.PI*2);
+        ctx.fillStyle = p.gold ? `rgba(240,190,60,${alpha})` : `rgba(200,200,210,${alpha})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(17,17,17,${alpha*0.5})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+    });
   },
 
   openDialogue(npcId){
@@ -2588,11 +2661,28 @@ const Explore = {
       if (d < nearestDist){ nearestDist = d; nearest = npc; }
     });
     this.activeNpcId = nearest ? nearest.id : null;
+
+    // proximity check for a shakeable coin bush (only when not already talking to an NPC)
+    let nearestBush = null, nearestBushDist = 1.0;
+    if (this.scene === 'street' && !nearest){
+      this.COIN_BUSHES.forEach(b=>{
+        const onCooldown = (Date.now() - (state.bushCoinShakes[b.id]||0)) < this.BUSH_COOLDOWN_MS;
+        if (onCooldown) return;
+        const d = Math.hypot(b.x - this.player.x, b.y - this.player.y);
+        if (d < nearestBushDist){ nearestBushDist = d; nearestBush = b; }
+      });
+    }
+    this.activeBushId = nearestBush ? nearestBush.id : null;
+
     const promptEl = document.getElementById('explorePrompt');
     const hintEl = document.getElementById('exploreHint');
     if (!this.dialogueOpen){
       if (nearest){
         promptEl.textContent = `Press E to talk to ${nearest.name}`;
+        promptEl.style.display = 'block';
+        hintEl.style.display = 'none';
+      } else if (nearestBush){
+        promptEl.textContent = 'Press E to shake the bush';
         promptEl.style.display = 'block';
         hintEl.style.display = 'none';
       } else {
@@ -2989,6 +3079,22 @@ const Explore = {
         ()=> this.drawFlowerBed(ctx, origin, x, y), 0) });
     });
 
+    // coin bushes — sparkle when they're ready to be shaken
+    this.COIN_BUSHES.forEach(b=>{
+      const onCooldown = (Date.now() - (state.bushCoinShakes[b.id]||0)) < this.BUSH_COOLDOWN_MS;
+      drawables.push({ depth: b.y, draw: ()=>{
+        this.drawGroundSprite(ctx, origin, b.x, b.y, 'bush', ()=> this.drawBush(ctx, origin, b.x, b.y), 12, 6);
+        if (!onCooldown){
+          const p = this.proj(b.x, b.y, 0.55, origin);
+          const pulse = 0.5 + 0.5 * Math.sin(performance.now()/300);
+          ctx.beginPath();
+          ctx.ellipse(p.x, p.y, 4 + pulse*2, 4 + pulse*2, 0, 0, Math.PI*2);
+          ctx.fillStyle = `rgba(255,215,90,${0.5 + pulse*0.4})`;
+          ctx.fill();
+        }
+      }});
+    });
+
     this.npcs.forEach(npc=>{
       drawables.push({ depth: npc.y, draw: ()=> this.drawCharacter(ctx, origin, npc.x, npc.y, npc.emoji, npc.id === this.activeNpcId) });
     });
@@ -2996,6 +3102,7 @@ const Explore = {
 
     drawables.sort((a,b)=> a.depth - b.depth);
     drawables.forEach(d=> d.draw());
+    this.drawCoinBursts(ctx, origin);
   },
 
   drawCafeSignage(ctx, origin, stroke){
