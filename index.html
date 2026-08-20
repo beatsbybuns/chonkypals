@@ -19,17 +19,20 @@
   body{
     margin:0; font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif; color:var(--ink);
     background:var(--page-bg); transition:background-color .3s, color .3s;
-    min-height:100vh; display:flex; justify-content:center; padding:16px;
+    min-height:100vh; display:flex; justify-content:center; padding:16px; overflow-x:hidden;
   }
   .app{ width:100%; max-width:667px; }
   header{
-    display:flex; justify-content:space-between; align-items:center;
+    display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; row-gap:10px;
     background:var(--surface); border:2px solid var(--border); border-radius:20px;
     padding:12px 18px; margin-bottom:16px;
     box-shadow:6px 6px 0 0 var(--shadow);
     transition:background-color .3s, border-color .3s, box-shadow .3s;
   }
   header h1{ font-size:18px; margin:0; font-weight:800; text-transform:uppercase; letter-spacing:.02em; }
+  .header-name{ display:flex; align-items:center; gap:6px; min-width:0; }
+  .header-name h1{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+  .header-actions{ display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; row-gap:8px; }
   header h1 span{ outline:none; border-bottom:2px dashed transparent; }
   header h1 span:focus{ border-bottom:2px dashed var(--border); }
   .name-edit-btn{
@@ -80,7 +83,7 @@
   .room{
     background:var(--card-bg) url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MDAgNDAwIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIj48cmVjdCB4PSIzOTIiIHk9IjQ0IiB3aWR0aD0iMTY4IiBoZWlnaHQ9IjE0MCIgcng9IjE0IiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMTcsMTcsMTcsMC41NSkiIHN0cm9rZS13aWR0aD0iMi41Ii8+PHJlY3QgeD0iNDA0IiB5PSI1NiIgd2lkdGg9IjE0NCIgaGVpZ2h0PSIxMTYiIHJ4PSI2IiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMTcsMTcsMTcsMC4zMikiIHN0cm9rZS13aWR0aD0iMS42Ii8+PGxpbmUgeDE9IjQ3Ni4wIiB5MT0iNTYiIHgyPSI0NzYuMCIgeTI9IjE3MiIgc3Ryb2tlPSJyZ2JhKDE3LDE3LDE3LDAuNTUpIiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGxpbmUgeDE9IjQwNCIgeTE9IjExNC4wIiB4Mj0iNTQ4IiB5Mj0iMTE0LjAiIHN0cm9rZT0icmdiYSgxNywxNywxNywwLjU1KSIgc3Ryb2tlLXdpZHRoPSIyLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxyZWN0IHg9IjU2IiB5PSI1NiIgd2lkdGg9IjEzMiIgaGVpZ2h0PSIxMDQiIHJ4PSIxMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDE3LDE3LDE3LDAuNTUpIiBzdHJva2Utd2lkdGg9IjIuNSIvPjxyZWN0IHg9IjY2IiB5PSI2NiIgd2lkdGg9IjExMiIgaGVpZ2h0PSI4NCIgcng9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgxNywxNywxNywwLjMyKSIgc3Ryb2tlLXdpZHRoPSIxLjYiLz48cGF0aCBkPSJNIDY2IDE1MCBMIDEwNSAxMDQgTCAxMzEgMTI5IEwgMTU2IDkxIEwgMTc4IDE1MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDE3LDE3LDE3LDAuMzIpIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxsaW5lIHgxPSIwIiB5MT0iMzAwIiB4Mj0iNjAwIiB5Mj0iMzAwIiBzdHJva2U9InJnYmEoMTcsMTcsMTcsMC41NSkiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cmVjdCB4PSI0NTAiIHk9IjI1NiIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQ0IiByeD0iMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgxNywxNywxNywwLjMyKSIgc3Ryb2tlLXdpZHRoPSIxLjYiLz48cGF0aCBkPSJNIDQ5MCAyNjYgcSAxNiAwIDE2IDEyIHEgMCAxMiAtMTYgMTIiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgxNywxNywxNywwLjMyKSIgc3Ryb2tlLXdpZHRoPSIxLjYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxyZWN0IHg9IjExMCIgeT0iMjg4IiB3aWR0aD0iNjAiIGhlaWdodD0iMTIiIHJ4PSI0IiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMTcsMTcsMTcsMC4zMikiIHN0cm9rZS13aWR0aD0iMS42Ii8+PHJlY3QgeD0iMTE2IiB5PSIyNzYiIHdpZHRoPSI0NiIgaGVpZ2h0PSIxMiIgcng9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgxNywxNywxNywwLjMyKSIgc3Ryb2tlLXdpZHRoPSIxLjYiLz48cmVjdCB4PSIxMTIiIHk9IjI2NCIgd2lkdGg9IjUyIiBoZWlnaHQ9IjEyIiByeD0iNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDE3LDE3LDE3LDAuMzIpIiBzdHJva2Utd2lkdGg9IjEuNiIvPjwvc3ZnPg==") center / 100% 100% no-repeat;
     border:2px solid var(--border); border-radius:20px; padding:20px 12px 8px;
-    position:relative; min-height:456px; overflow:hidden;
+    position:relative; min-height:220px; aspect-ratio:667/456; overflow:hidden;
     box-shadow:6px 6px 0 0 var(--shadow);
     transition:background-color .3s, border-color .3s, box-shadow .3s;
   }
@@ -286,16 +289,52 @@
   .explore-dialogue-name{ font-weight:800; text-transform:uppercase; font-size:12px; margin-bottom:6px; letter-spacing:.02em; color:#7553FF; }
   .explore-dialogue-text{ font-size:14px; line-height:1.45; color:#111; }
   .explore-dialogue-hint{ font-size:10px; color:#888; margin-top:10px; text-transform:uppercase; font-weight:700; }
+  .explore-touch-controls{ display:none; }
+  .explore-dpad{
+    position:absolute; left:20px; bottom:20px; width:150px; height:150px;
+    display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:4px;
+    pointer-events:auto;
+  }
+  .dpad-btn{
+    background:rgba(255,255,255,.85); border:2px solid #111; border-radius:12px;
+    font-size:16px; font-weight:800; color:#111; box-shadow:none; touch-action:none;
+    display:flex; align-items:center; justify-content:center; user-select:none;
+  }
+  .dpad-btn:active, .dpad-btn.active{ background:#7553FF; color:#fff; }
+  .dpad-up{ grid-column:2; grid-row:1; }
+  .dpad-left{ grid-column:1; grid-row:2; }
+  .dpad-right{ grid-column:3; grid-row:2; }
+  .dpad-down{ grid-column:2; grid-row:3; }
+  .explore-e-btn{
+    position:absolute; right:24px; bottom:36px; width:68px; height:68px; border-radius:50%;
+    background:rgba(117,83,255,.92); color:#fff; border:2px solid #111; font-size:16px; font-weight:800;
+    box-shadow:4px 4px 0 0 #000; pointer-events:auto; touch-action:none; user-select:none;
+  }
+  .explore-e-btn:active{ transform:translate(3px,3px); box-shadow:none; }
+  @media (hover:none) and (pointer:coarse){
+    .explore-touch-controls{ display:block; }
+    .explore-hint{ display:none; }
+  }
+  @media (max-width:480px){
+    body{ padding:10px; }
+    header{ padding:10px 14px; }
+    header h1{ font-size:15px; }
+    .coins{ font-size:11px; height:30px; padding:0 10px; }
+    .icon-btn{ width:30px; height:30px; font-size:14px; }
+    .explore-btn{ height:30px; font-size:9px; padding:0 10px; }
+    .shop-grid{ grid-template-columns:repeat(2,1fr); }
+    .actions{ gap:6px; }
+  }
 </style>
 </head>
 <body>
 <div class="app">
   <header>
-    <div style="display:flex; align-items:center; gap:6px;">
+    <div class="header-name">
       <h1><span id="petNameTop" contenteditable="true" spellcheck="false">Your Pet</span></h1>
       <button class="name-edit-btn" onclick="Game.focusRenameTop()" aria-label="Name your pet" title="NAME YOUR PET">✏️</button>
     </div>
-    <div style="display:flex; align-items:center; gap:8px;">
+    <div class="header-actions">
       <div class="coins">🪙 <span id="coinCount">0</span></div>
       <button class="explore-btn" onclick="Explore.open()" aria-label="Explore mode" title="EXPLORE MODE">Explore Mode</button>
       <div class="pet-picker-wrap">
@@ -359,7 +398,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-19.21 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-19.22 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -545,6 +584,15 @@
     <div class="explore-dialogue-name" id="exploreDialogueName"></div>
     <div class="explore-dialogue-text" id="exploreDialogueText"></div>
     <div class="explore-dialogue-hint">press E or click to continue</div>
+  </div>
+  <div class="explore-touch-controls" id="exploreTouchControls">
+    <div class="explore-dpad">
+      <button class="dpad-btn dpad-up" data-key="arrowup" aria-label="Move up">▲</button>
+      <button class="dpad-btn dpad-left" data-key="arrowleft" aria-label="Move left">◀</button>
+      <button class="dpad-btn dpad-right" data-key="arrowright" aria-label="Move right">▶</button>
+      <button class="dpad-btn dpad-down" data-key="arrowdown" aria-label="Move down">▼</button>
+    </div>
+    <button class="explore-e-btn" id="exploreEBtn" aria-label="Interact">E</button>
   </div>
 </div>
 
@@ -2281,6 +2329,28 @@ document.getElementById('petSprite').addEventListener('click', ()=>{
 });
 
 makeDraggable(document.getElementById('petAccessory'), ()=> state.wearOffset || null, (newOff)=>{ state.wearOffset = newOff; });
+
+document.querySelectorAll('.dpad-btn').forEach(btn=>{
+  const key = btn.dataset.key;
+  const setKey = (val)=>{ Explore.keys[key] = val; };
+  btn.addEventListener('pointerdown', (e)=>{
+    e.preventDefault();
+    setKey(true);
+    btn.classList.add('active');
+    try{ btn.setPointerCapture(e.pointerId); }catch(err){}
+  });
+  btn.addEventListener('pointerup', ()=>{ setKey(false); btn.classList.remove('active'); });
+  btn.addEventListener('pointercancel', ()=>{ setKey(false); btn.classList.remove('active'); });
+  btn.addEventListener('pointerleave', ()=>{ setKey(false); btn.classList.remove('active'); });
+});
+
+const exploreEBtn = document.getElementById('exploreEBtn');
+if (exploreEBtn){
+  exploreEBtn.addEventListener('pointerdown', (e)=>{
+    e.preventDefault();
+    try{ Explore.onInteract(); }catch(err){ console.error(err); }
+  });
+}
 
 document.addEventListener('click', (e)=>{
   const wrap = document.querySelector('.pet-picker-wrap');
