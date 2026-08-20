@@ -419,7 +419,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.27 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.28 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -723,7 +723,7 @@ function freshState(){
     inventory: { food:{}, toy:{}, decor:{}, wear:{} },
     placedDecor: [],
     ownedDecor: [],
-    ownedWear: [],
+    ownedWear: {},
     freeFeedTimes: [],
     decorOffsets: {},
     wearOffset: null,
@@ -771,7 +771,12 @@ if (!state.ownedDecor) state.ownedDecor = [...(state.placedDecor||[])];
 if (!state.decorOffsets) state.decorOffsets = {};
 if (state.wearOffset === undefined) state.wearOffset = null;
 if (!state.streak) state.streak = { count: 0, lastDate: null };
-if (!state.ownedWear) state.ownedWear = state.pet.wearing ? [state.pet.wearing] : [];
+if (!state.ownedWear) state.ownedWear = state.pet.wearing ? {[state.pet.wearing]: 1} : {};
+if (Array.isArray(state.ownedWear)){
+  const wearCounts = {};
+  state.ownedWear.forEach(id => { wearCounts[id] = (wearCounts[id]||0) + 1; });
+  state.ownedWear = wearCounts;
+}
 if (state.pet.enrichment === undefined) state.pet.enrichment = 0;
 if (!state.pet.enrichmentLevel) state.pet.enrichmentLevel = 1;
 
@@ -1133,18 +1138,18 @@ const Game = {
     grid.innerHTML = '';
     CATALOG[shopTab].forEach(item=>{
       const owned = shopTab==='decor' ? state.ownedDecor.includes(item.id)
-                  : shopTab==='wear' ? state.ownedWear.includes(item.id)
+                  : shopTab==='wear' ? (state.ownedWear[item.id]||0)
                   : (state.inventory[shopTab][item.id]||0);
       const div = document.createElement('div');
       div.className = 'shop-item';
-      const qtyBadge = (shopTab==='food'||shopTab==='toy') && owned>0 ? `<span class="owned-badge">x${owned}</span>` : '';
-      const doneBadge = (shopTab==='decor'||shopTab==='wear') && owned ? `<span class="owned-badge">owned</span>` : '';
+      const qtyBadge = (shopTab==='food'||shopTab==='toy'||shopTab==='wear') && owned>0 ? `<span class="owned-badge">x${owned}</span>` : '';
+      const doneBadge = (shopTab==='decor') && owned ? `<span class="owned-badge">owned</span>` : '';
       div.innerHTML = `
         <div class="emoji">${item.icon || item.emoji}</div>
         <div>${item.name}</div>
         ${qtyBadge}${doneBadge}
-        <button ${((shopTab==='decor'||shopTab==='wear') && owned) ? 'disabled' : ''}>
-          ${((shopTab==='decor'||shopTab==='wear') && owned) ? 'Owned' : '🪙 '+item.cost}
+        <button ${(shopTab==='decor' && owned) ? 'disabled' : ''}>
+          ${(shopTab==='decor' && owned) ? 'Owned' : '🪙 '+item.cost}
         </button>`;
       div.querySelector('button').onclick = ()=> Game.buy(shopTab, item);
       grid.appendChild(div);
@@ -1158,9 +1163,8 @@ const Game = {
       state.ownedDecor.push(item.id);
       if (!state.placedDecor.includes(item.id)) state.placedDecor.push(item.id);
     } else if (category==='wear'){
-      if (state.ownedWear.includes(item.id)) return;
-      state.ownedWear.push(item.id);
-      state.pet.wearing = item.id;
+      state.ownedWear[item.id] = (state.ownedWear[item.id]||0) + 1;
+      this.equipWear(item.id);
     } else {
       state.inventory[category][item.id] = (state.inventory[category][item.id]||0)+1;
     }
@@ -1184,13 +1188,29 @@ const Game = {
     this.renderInventory();
   },
 
+  wearEquippedElsewhere(id, excludeSkin){
+    return Object.keys(state.pets).filter(skin => skin !== excludeSkin && state.pets[skin].wearing === id).length;
+  },
+
+  equipWear(id){
+    const owned = state.ownedWear[id] || 0;
+    if (owned <= 0) return false;
+    const elsewhere = this.wearEquippedElsewhere(id, state.activeSkin);
+    if (elsewhere >= owned){
+      const item = CATALOG.wear.find(i=>i.id===id);
+      log(`All your ${item ? item.name : 'item'}${owned>1?'s are':' is'} being worn by another pet — buy another to share!`);
+      return false;
+    }
+    state.pet.wearing = id;
+    return true;
+  },
+
   toggleWear(id){
     if (state.pet.wearing === id){
       state.pet.wearing = null;
       log('Took that off.');
     } else {
-      if (!state.ownedWear.includes(id)) return;
-      state.pet.wearing = id;
+      if (!this.equipWear(id)) { render(); this.renderInventory(); return; }
       log('Wearing it now!');
     }
     render();
@@ -1275,7 +1295,7 @@ const Game = {
     CATALOG.food.forEach(item => { const qty = state.inventory.food[item.id]||0; if (qty>0) entries.push({cat:'food', item, qty}); });
     CATALOG.toy.forEach(item => { const qty = state.inventory.toy[item.id]||0; if (qty>0) entries.push({cat:'toy', item, qty}); });
     CATALOG.decor.forEach(item => { if (state.ownedDecor.includes(item.id)) entries.push({cat:'decor', item, placed: state.placedDecor.includes(item.id)}); });
-    CATALOG.wear.forEach(item => { if (state.ownedWear.includes(item.id)) entries.push({cat:'wear', item, equipped: state.pet.wearing===item.id}); });
+    CATALOG.wear.forEach(item => { const qty = state.ownedWear[item.id]||0; if (qty>0) entries.push({cat:'wear', item, qty, equipped: state.pet.wearing===item.id}); });
 
     const body = document.getElementById('inventoryBody');
     if (!entries.length){
@@ -1285,7 +1305,7 @@ const Game = {
     const badgeFor = (e) => {
       if (e.cat==='food' || e.cat==='toy') return 'x' + e.qty;
       if (e.cat==='decor') return e.placed ? 'placed' : 'stored';
-      return e.equipped ? 'worn' : 'owned';
+      return (e.equipped ? 'worn · ' : '') + 'x' + e.qty;
     };
     const cards = entries.map(e => `
       <div class="shop-item inv-clickable" onclick="Game.openItemDetail('${e.cat}','${e.item.id}')">
@@ -1325,10 +1345,19 @@ const Game = {
       actionBtn.disabled = false;
       actionBtn.onclick = ()=>{ Game.toggleDecorPlacement(id); Game.openItemDetail(cat, id); };
     } else if (cat === 'wear'){
+      const owned = state.ownedWear[id] || 0;
       const equipped = state.pet.wearing === id;
-      statusEl.textContent = equipped ? 'Your pet is wearing this.' : 'Not currently worn.';
+      const elsewhere = Game.wearEquippedElsewhere(id, state.activeSkin);
+      const available = owned - elsewhere;
+      if (equipped){
+        statusEl.textContent = owned > 1 ? `Your pet is wearing this. You own ${owned}, shared across pets.` : 'Your pet is wearing this.';
+      } else if (available <= 0){
+        statusEl.textContent = `All ${owned} you own ${owned===1?'is':'are'} being worn by another pet. Buy another to share!`;
+      } else {
+        statusEl.textContent = `Not currently worn. You own ${owned}.`;
+      }
       actionBtn.textContent = equipped ? 'Take off' : 'Wear';
-      actionBtn.disabled = false;
+      actionBtn.disabled = !equipped && available <= 0;
       actionBtn.onclick = ()=>{ Game.toggleWear(id); Game.openItemDetail(cat, id); };
     }
 
