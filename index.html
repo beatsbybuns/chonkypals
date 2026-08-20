@@ -434,7 +434,7 @@
 
   <div class="footer-note">Progress saves automatically in this browser.</div>
   <div class="footer-note" style="margin-top:2px; opacity:.7;">made by someone at Sentry</div>
-  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.37 — if buttons seem stuck, fully reload/reopen this file</div>
+  <div class="footer-note" style="margin-top:2px; opacity:.45;">build 2026-08-20.38 — if buttons seem stuck, fully reload/reopen this file</div>
 </div>
 
 <!-- Shop Modal -->
@@ -2232,6 +2232,8 @@ const FireGame = {
    it's anchored by its bottom-center to the object's ground point. */
 const SPRITES = {
   tree:         { img: null, loaded: false, w: 56, h: 78 },
+  bush:         { img: null, loaded: false, w: 34, h: 26 },
+  flowerBed:    { img: null, loaded: false, w: 32, h: 18 },
   bench:        { img: null, loaded: false, w: 52, h: 30 },
   streetlamp:   { img: null, loaded: false, w: 28, h: 66 },
   kiosk:        { img: null, loaded: false, w: 60, h: 50 },
@@ -2328,6 +2330,11 @@ const Explore = {
     {x0:27.2, y0:18.6, x1:28.8, y1:18.9}
   ],
   PLAZA_LAMPS: [ [19.0,14.0], [29.2,19.4] ],
+
+  // extra greenery scattered across the sidewalks for environmental density — purely
+  // decorative (not collidable), just more life on every block
+  STREET_BUSHES: [ [3.0,8.5], [7.0,8.5], [3.0,13.0], [30.0,15.0] ],
+  FLOWER_BEDS: [ [7.5,1.3], [21.0,3.0], [28.0,7.0], [10.0,13.0], [24.4,20.0] ],
 
   // block footprints, used to paint the sidewalk apron around each block against the street
   BLOCK_FOOTPRINTS: [
@@ -2720,6 +2727,36 @@ const Explore = {
     this.poly(ctx, leftPts, left, stroke);
     this.poly(ctx, rightPts, right, stroke);
     this.poly(ctx, topPts, top, stroke);
+    // subtle inset bevel highlight on the top face — a cheap way to make flat
+    // placeholder boxes read as "designed" chunky objects rather than CSS rectangles
+    const inset = Math.min(0.05, (x1-x0)*0.16, (y1-y0)*0.16);
+    if (inset > 0.008){
+      const hiPts = [P(x0+inset,y0+inset,h), P(x1-inset,y0+inset,h), P(x1-inset,y1-inset,h), P(x0+inset,y1-inset,h)];
+      ctx.beginPath();
+      ctx.moveTo(hiPts[0].x, hiPts[0].y);
+      for (let i=1;i<hiPts.length;i++) ctx.lineTo(hiPts[i].x, hiPts[i].y);
+      ctx.closePath();
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 1.1;
+      ctx.stroke();
+    }
+  },
+
+  drawBush(ctx, origin, x, y){
+    this.drawTreeCanopy(ctx, origin, x, y, 0.24, 0.32, '#5a9c5e');
+  },
+
+  drawFlowerBed(ctx, origin, x, y){
+    const base = this.proj(x, y, 0.04, origin);
+    ctx.beginPath(); ctx.ellipse(base.x, base.y, 14, 8, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#5c8a52'; ctx.fill();
+    ctx.strokeStyle = 'rgba(17,17,17,0.25)'; ctx.lineWidth = 1; ctx.stroke();
+    const colors = ['#e8637a','#f2b84b','#e8637a','#f2b84b','#d868c9'];
+    const pts = [[-8,-2],[-3,-5],[3,-4],[7,-1],[0,3]];
+    pts.forEach(([dx,dy],i)=>{
+      ctx.beginPath(); ctx.ellipse(base.x+dx, base.y+dy, 3, 3, 0, 0, Math.PI*2);
+      ctx.fillStyle = colors[i % colors.length]; ctx.fill();
+    });
   },
 
   drawTreeCanopy(ctx, origin, x, y, z, r, color){
@@ -2944,6 +2981,16 @@ const Explore = {
     this.PLAZA_LAMPS.forEach(([x,y])=>{
       drawables.push({ depth: y, draw: ()=> this.drawGroundSprite(ctx, origin, x, y, 'streetlamp',
         ()=> this.drawStreetlamp(ctx, origin, x, y), 10, 5) });
+    });
+
+    // extra greenery for environmental density
+    this.STREET_BUSHES.forEach(([x,y])=>{
+      drawables.push({ depth: y, draw: ()=> this.drawGroundSprite(ctx, origin, x, y, 'bush',
+        ()=> this.drawBush(ctx, origin, x, y), 12, 6) });
+    });
+    this.FLOWER_BEDS.forEach(([x,y])=>{
+      drawables.push({ depth: y, draw: ()=> this.drawGroundSprite(ctx, origin, x, y, 'flowerBed',
+        ()=> this.drawFlowerBed(ctx, origin, x, y), 0) });
     });
 
     this.npcs.forEach(npc=>{
